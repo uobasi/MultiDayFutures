@@ -425,7 +425,6 @@ def update_graph_live(n_intervals, data):
     
     # Update layout
     fig.update_layout(title=stkName + ' '+  str(datetime.now()),
-                      xaxis_title='Date',
                       yaxis_title='Price',
                       xaxis=dict(type = "category"),
                       xaxis_rangeslider_visible=False, showlegend=False, height=800,)
