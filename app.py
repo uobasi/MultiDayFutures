@@ -370,21 +370,7 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(go.Scatter(x=df['time'], y=df['STDEV_N0'], mode='lines', opacity=0.15, name='LOWERVWAP0.5', line=dict(color='black')))
     
     
-    sortadlist = newwT[:50]
-    for v in range(len(sortadlist)):
-        fig.add_trace(go.Scatter(x=df['time'],
-                                 y= [sortadlist[v][0]]*len(df['time']) ,
-                                 line_color= 'rgb(0,104,139)' if (str(sortadlist[v][3]) == 'B(SELL)' or str(sortadlist[v][3]) == 'BB(SELL)' or str(sortadlist[v][3]) == 'B') else 'brown' if (str(sortadlist[v][3]) == 'A(BUY)' or str(sortadlist[v][3]) == 'AA(BUY)' or str(sortadlist[v][3]) == 'A') else 'rgb(0,0,0)',
-                                 text = str(sortadlist[v][4]) + ' ' + str(sortadlist[v][1]) + ' ' + str(sortadlist[v][3])  + ' ' + str(sortadlist[v][6]),
-                                 #text='('+str(priceDict[sortadlist[v][0]]['ASKAVG'])+'/'+str(priceDict[sortadlist[v][0]]['BIDAVG']) +')'+ '('+str(priceDict[sortadlist[v][0]]['ASK'])+'/'+str(priceDict[sortadlist[v][0]]['BID']) +')'+  '('+ sortadlist[v][3] +') '+str(sortadlist[v][4]),
-                                 textposition="bottom left",
-                                 name=str(sortadlist[v][0]),
-                                 showlegend=False,
-                                 visible=False,
-                                 mode= 'lines',
-                                
-                                ),
-                     )
+    
 
     blob = Blob('PrevDay', bucket) 
     PrevDay = blob.download_as_text()
@@ -411,6 +397,22 @@ def update_graph_live(n_intervals, data):
                                  showlegend=False,
                                  visible=False,
                                  mode= 'lines',
+                                ),
+                     )
+
+    sortadlist = newwT[:50]
+    for v in range(len(sortadlist)):
+        fig.add_trace(go.Scatter(x=df['time'],
+                                 y= [sortadlist[v][0]]*len(df['time']) ,
+                                 line_color= 'rgb(0,104,139)' if (str(sortadlist[v][3]) == 'B(SELL)' or str(sortadlist[v][3]) == 'BB(SELL)' or str(sortadlist[v][3]) == 'B') else 'brown' if (str(sortadlist[v][3]) == 'A(BUY)' or str(sortadlist[v][3]) == 'AA(BUY)' or str(sortadlist[v][3]) == 'A') else 'rgb(0,0,0)',
+                                 text = str(sortadlist[v][4]) + ' ' + str(sortadlist[v][1]) + ' ' + str(sortadlist[v][3])  + ' ' + str(sortadlist[v][6]),
+                                 #text='('+str(priceDict[sortadlist[v][0]]['ASKAVG'])+'/'+str(priceDict[sortadlist[v][0]]['BIDAVG']) +')'+ '('+str(priceDict[sortadlist[v][0]]['ASK'])+'/'+str(priceDict[sortadlist[v][0]]['BID']) +')'+  '('+ sortadlist[v][3] +') '+str(sortadlist[v][4]),
+                                 textposition="bottom left",
+                                 name=str(sortadlist[v][0]),
+                                 showlegend=False,
+                                 visible=False,
+                                 mode= 'lines',
+                                
                                 ),
                      )
         
