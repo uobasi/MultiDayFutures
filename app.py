@@ -411,9 +411,7 @@ def update_graph_live(n_intervals, data):
                                  showlegend=False,
                                  visible=False,
                                  mode= 'lines',
-                                
                                 ),
-                      row=1, col=1
                      )
         
         
