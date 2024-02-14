@@ -385,6 +385,36 @@ def update_graph_live(n_intervals, data):
                                 
                                 ),
                      )
+
+    blob = Blob('PrevDay', bucket) 
+    PrevDay = blob.download_as_text()
+        
+
+    csv_reader  = csv.reader(io.StringIO(PrevDay))
+
+    csv_rows = []
+    for row in csv_reader:
+        csv_rows.append(row)
+        
+        
+    previousDay = [csv_rows[[i[4] for i in csv_rows].index(symbolNum)][0] ,csv_rows[[i[4] for i in csv_rows].index(symbolNum)][1] ,csv_rows[[i[4] for i in csv_rows].index(symbolNum)][2]]
+    
+    
+
+    if len(previousDay) > 0:
+        fig.add_trace(go.Scatter(x=df['time'],
+                                 y= [float(previousDay[2])]*len(df['time']) ,
+                                 line_color='cyan',
+                                 text = str(previousDay[2]),
+                                 textposition="bottom left",
+                                 name='PreviousDay POC '+ str(previousDay[2]),
+                                 showlegend=False,
+                                 visible=False,
+                                 mode= 'lines',
+                                
+                                ),
+                      row=1, col=1
+                     )
         
         
     for tmr in range(0,len(fig.data)): 
