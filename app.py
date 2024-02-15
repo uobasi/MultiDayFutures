@@ -167,7 +167,7 @@ app.layout = html.Div([
 
     html.Div(dcc.Input(id='input-on-submit', type='text')),
     html.Button('Submit', id='submit-val', n_clicks=0),
-    html.Div(id='container-button-basic',children="Enter a symbol from |'ESH4' 'NQH4' 'CLG4' 'GCG4' 'NGG4' 'HGH4' 'YMH4' 'BTCZ3' 'RTYH4'| and submit"),
+    html.Div(id='container-button-basic',children="Enter a symbol from |'ESH4' 'NQH4' 'CLH4' 'GCJ4' 'HGH4' 'YMH4' 'BTCG4' 'RTYH4'| and submit"),
     dcc.Store(id='stkName-value')
 ])
 
@@ -188,7 +188,7 @@ def update_output(n_clicks, value):
     
     
     else:
-        return 'The input symbol was '+str(value)+" is not accepted please try different symbol from  |'ESH4' 'NQH4' 'CLG4' 'GCG4' 'NGG4' 'HGH4' 'YMH4' 'BTCZ3' 'RTYH4'|  ", 'The input symbol was '+str(value)+" is not accepted please try different symbol  |'ESH4' 'NQH4' 'CLG4' 'GCG4' 'NGG4' 'HGH4' 'YMH4' 'BTCZ3' 'RTYH4'|  "
+        return 'The input symbol was '+str(value)+" is not accepted please try different symbol from  |'ESH4' 'NQH4' 'CLH4' 'GCJ4' 'HGH4' 'YMH4' 'BTCG4' 'RTYH4'|  ", 'The input symbol was '+str(value)+" is not accepted please try different symbol  |'ESH4' 'NQH4' 'CLG4' 'GCG4' 'NGG4' 'HGH4' 'YMH4' 'BTCZ3' 'RTYH4'|  "
 
 @callback(Output('graph', 'figure'),
           Input('interval', 'n_intervals'),
