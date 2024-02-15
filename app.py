@@ -16,13 +16,11 @@ import plotly.io as pio
 pio.renderers.default='browser'
 import plotly.graph_objects as go
 from scipy.signal import argrelextrema
-<<<<<<< HEAD
 from plotly.subplots import make_subplots
-=======
 from scipy import signal
 from scipy.misc import derivative
 from scipy.interpolate import interp1d
->>>>>>> 58c1d52f2a4d57342d6a1e847a6d6a1f1fdfbd4d
+
 
 
 
