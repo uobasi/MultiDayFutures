@@ -415,6 +415,35 @@ def update_graph_live(n_intervals, data):
                                 
                                 ),
                      )
+    localMin = argrelextrema(df.close.values, np.less_equal, order=100)[0] 
+    localMax = argrelextrema(df.close.values, np.greater_equal, order=100)[0]
+    
+    if len(localMin) > 0:
+        mcount = 0 
+        for p in localMin:
+            fig.add_annotation(x=df['time'][p], y=df['close'][p],
+                            text= str(mcount) +'Min' ,
+                            showarrow=True,
+                            arrowhead=4,
+                            font=dict(
+                #family="Courier New, monospace",
+                size=10,
+                # color="#ffffff"
+            ),)
+            mcount+=1
+    if len(localMax) > 0:
+        mcount = 0 
+        for b in localMax:
+            fig.add_annotation(x=df['time'][b], y=df['close'][b],
+                            text=str(mcount) + 'Max',
+                            showarrow=True,
+                            arrowhead=4,
+                            font=dict(
+                #family="Courier New, monospace",
+                size=10,
+                # color="#ffffff"
+            ),)
+            mcount+=1
         
         
     for tmr in range(0,len(fig.data)): 
