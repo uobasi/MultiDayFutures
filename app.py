@@ -15,6 +15,7 @@ import math
 import plotly.io as pio
 pio.renderers.default='browser'
 import plotly.graph_objects as go
+from scipy.signal import argrelextrema
 
 
 
