@@ -16,9 +16,7 @@ import plotly.io as pio
 pio.renderers.default='browser'
 import plotly.graph_objects as go
 from scipy.signal import argrelextrema
-from scipy import signal
-from scipy.misc import derivative
-from scipy.interpolate import interp1d
+from plotly.subplots import make_subplots
 
 
 
@@ -348,20 +346,11 @@ def update_graph_live(n_intervals, data):
     
     
     
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, shared_yaxes=True,
-                        specs=[[{}],
-                               [{}]], #[{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
-                        horizontal_spacing=0.02, vertical_spacing=0.03,
-                         row_width=[0.20, 0.80,] ) 
-    
-    fig.add_trace(go.Candlestick(x=df['time'],
-                                 open=df['open'],
-                                 high=df['high'],
-                                 low=df['low'],
-                                 close=df['close'],
-                                 # hoverinfo='text',
-                                 name="OHLC"),
-                  row=1, col=1)
+    fig = go.Figure(data=[go.Candlestick(x=df['time'],
+                                         open=df['open'],
+                                         high=df['high'],
+                                         low=df['low'],
+                                         close=df['close'])])
     
     
     fig.add_trace(go.Scatter(x=df['time'], y=df['vwap'], mode='lines', name='VWAP'))
@@ -411,7 +400,6 @@ def update_graph_live(n_intervals, data):
                                  visible=False,
                                  mode= 'lines',
                                 ),
-                        row=1, col=1
                      )
 
     sortadlist = newwT[:50]
@@ -428,7 +416,6 @@ def update_graph_live(n_intervals, data):
                                  mode= 'lines',
                                 
                                 ),
-                        row=1, col=1
                      )
     localMin = argrelextrema(df.close.values, np.less_equal, order=100)[0] 
     localMax = argrelextrema(df.close.values, np.greater_equal, order=100)[0]
@@ -459,19 +446,6 @@ def update_graph_live(n_intervals, data):
                 # color="#ffffff"
             ),)
             mcount+=1
-
-    x = np.array([i for i in range(len(df))])
-    y = np.array([i for i in df['40ema']])
-
-    # Simple interpolation of x and y
-    f = interp1d(x, y)
-    x_fake = np.arange(0.1, len(df)-1, 1)  #0.10
-
-    # derivative of y with respect to x
-    df_dx = derivative(f, x_fake, dx=1e-6)
-
-    fig.add_trace(go.Scatter(x=x_fake, y=df_dx, mode='lines',name='Derivative'), row=2, col=1)
-    fig.add_hline(y=0, row=2, col=1, line_color='black')
         
         
     for tmr in range(0,len(fig.data)): 
