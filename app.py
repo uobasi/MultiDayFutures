@@ -401,6 +401,9 @@ def update_graph_live(n_intervals, data):
                                 ),
                      )
 
+    fig.add_trace(go.Scatter(x=df['time'], y=df['1ema'], mode='lines', opacity=0.15, name='1ema', line=dict(color='black')))
+    
+
     sortadlist = newwT[:50]
     for v in range(len(sortadlist)):
         fig.add_trace(go.Scatter(x=df['time'],
