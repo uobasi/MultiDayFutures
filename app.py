@@ -296,7 +296,7 @@ def update_graph_live(n_intervals, data):
     df = pd.DataFrame(cOHLC, columns = ['Timestamp', 'symbolNum', 'open', 'high', 'low', 'close', 'volume'])
     
     df['strTime'] = df['Timestamp'].apply(lambda x: pd.Timestamp(int(x) // 10**9, unit='s') )
-    
+    df['strTime'] = pd.to_datetime(df['strTime'])
     df.set_index('strTime', inplace=True)
     df['volume'] = pd.to_numeric(df['volume'], downcast='integer')
     df_resampled = df.resample('5T').agg({
