@@ -443,8 +443,8 @@ def update_graph_live(n_intervals, data):
                                 
                                 ),
                      )
-    localMin = argrelextrema(df.low.values, np.less_equal, order=120)[0] 
-    localMax = argrelextrema(df.high.values, np.greater_equal, order=120)[0]
+    localMin = argrelextrema(df.close.values, np.less_equal, order=120)[0] 
+    localMax = argrelextrema(df.close.values, np.greater_equal, order=120)[0]
     
     if len(localMin) > 0:
         mcount = 0 
