@@ -443,6 +443,8 @@ def update_graph_live(n_intervals, data):
                                 
                                 ),
                      )
+
+    '''
     localMin = argrelextrema(df.close.values, np.less_equal, order=120)[0] 
     localMax = argrelextrema(df.close.values, np.greater_equal, order=120)[0]
     
@@ -472,7 +474,7 @@ def update_graph_live(n_intervals, data):
                 # color="#ffffff"
             ),)
             mcount+=1
-        
+    '''   
         
     for tmr in range(0,len(fig.data)): 
         fig.data[tmr].visible = True
