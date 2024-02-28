@@ -153,7 +153,7 @@ gclient = storage.Client(project="stockapp-401615")
 bucket = gclient.get_bucket("stockapp-storage")
 
 from dash import Dash, dcc, html, Input, Output, callback, State
-inter = 150000#60000
+inter = 60000#60000
 app = Dash()
 app.layout = html.Div([
     
@@ -248,7 +248,7 @@ def update_graph_live(n_intervals, data):
     
     newAllTrades = []
     for i in allTrades:
-        opttimeStamp = datetime.fromtimestamp(int(i[0])/ 1e9).strftime("%Y-%m-%d %H:%M:%S")
+        opttimeStamp = datetime.utcfromtimestamp(int(i[0])/ 1e9).strftime("%Y-%m-%d %H:%M:%S")
         newAllTrades.append([float(i[1]), int(i[2]), int(i[0]), 0, i[3], opttimeStamp])
      
         
@@ -442,6 +442,33 @@ def update_graph_live(n_intervals, data):
                                 
                                 ),
                      )
+        
+    for trd in newwT[:50]:
+        trd.append(df['timestamp'].searchsorted(trd[2])-1)
+        
+    
+    for trds in newwT[:50]:
+        try:
+            if str(trds[3]) == 'A':
+                vallue = 'sell'
+                sidev = trds[0]
+            elif str(trds[3]) == 'B':
+                vallue = 'buy'
+                sidev = trds[0]
+            else:
+                vallue = 'Mid'
+                sidev = df['open'][trds[7]]
+            fig.add_annotation(x=df['time'][trds[7]], y=sidev,
+                               text= str(trds[4]) + ' ' + str(trds[1]) + ' ' + vallue ,
+                               showarrow=True,
+                               arrowhead=4,
+                               font=dict(
+                #family="Courier New, monospace",
+                size=10,
+                # color="#ffffff"
+            ),)
+        except(KeyError):
+            continue 
 
     '''
     localMin = argrelextrema(df.close.values, np.less_equal, order=120)[0] 
