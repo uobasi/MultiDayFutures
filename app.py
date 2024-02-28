@@ -382,9 +382,10 @@ def update_graph_live(n_intervals, data):
     for row in csv_reader:
         csv_rows.append(row)
         
-        
-    previousDay = [csv_rows[[i[4] for i in csv_rows].index(symbolNum)][0] ,csv_rows[[i[4] for i in csv_rows].index(symbolNum)][1] ,csv_rows[[i[4] for i in csv_rows].index(symbolNum)][2]]
-    
+    try:    
+        previousDay = [csv_rows[[i[4] for i in csv_rows].index(symbolNum)][0] ,csv_rows[[i[4] for i in csv_rows].index(symbolNum)][1] ,csv_rows[[i[4] for i in csv_rows].index(symbolNum)][2]]
+    except(ValueError):
+        previousDay = []
     
 
     if len(previousDay) > 0:
