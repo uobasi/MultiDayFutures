@@ -146,8 +146,8 @@ def splitHun(stkName, trad, quot, num1, num2, quodict):
     
     return [Bidd,belowBid,Askk,aboveAsk,Between]
 
-symbolNumList = ['17077', '750', '44740', '31863', '204839',  '7062', '2259', '156627', '156755', '1545', '4122', '270851', '948' ]
-symbolNameList = ['ESH4','NQH4', 'GCJ4', 'HGH4', 'YMH4', 'RTYH4', '6NH4', '6EH4', '6AH4', '6CH4', 'SIK4', 'CLJ4', 'NGJ4'  ]
+symbolNumList = ['17077', '750', '44740', '1101', '204839',  '7062', '2259', '156627', '156755', '1545', '4122', '270851', '948' ]
+symbolNameList = ['ESH4','NQH4', 'GCJ4', 'HGK4', 'YMH4', 'RTYH4', '6NH4', '6EH4', '6AH4', '6CH4', 'SIK4', 'CLJ4', 'NGJ4'  ]
 
 gclient = storage.Client(project="stockapp-401615")
 bucket = gclient.get_bucket("stockapp-storage")
