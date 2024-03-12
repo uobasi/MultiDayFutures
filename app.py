@@ -146,8 +146,8 @@ def splitHun(stkName, trad, quot, num1, num2, quodict):
     
     return [Bidd,belowBid,Askk,aboveAsk,Between]
 
-symbolNumList = ['17077', '750', '44740', '1101', '204839',  '7062', '2259', '156627', '156755', '1545', '4122', '270851', '948' ]
-symbolNameList = ['ESH4','NQH4', 'GCJ4', 'HGK4', 'YMH4', 'RTYH4', '6NH4', '6EH4', '6AH4', '6CH4', 'SIK4', 'CLJ4', 'NGJ4'  ]
+symbolNumList = ['5602', '13743', '44740', '1101', '80420', '2552', '2259', '156627', '156755', '1545', '4122', '270851', '948' ]
+symbolNameList = ['ES','NQ', 'GC', 'HG', 'YM', 'RTY', '6N', '6E', '6A', '6C', 'SI', 'CL', 'NG'  ]
 
 gclient = storage.Client(project="stockapp-401615")
 bucket = gclient.get_bucket("stockapp-storage")
@@ -202,7 +202,7 @@ def update_graph_live(n_intervals, data):
         stkName = data
         symbolNum = symbolNumList[symbolNameList.index(stkName)] 
     else:
-        stkName = 'NQH4'  
+        stkName = 'NQ'  
         symbolNum = symbolNumList[symbolNameList.index(stkName)]
 
 
