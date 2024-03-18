@@ -146,6 +146,25 @@ def splitHun(stkName, trad, quot, num1, num2, quodict):
     
     return [Bidd,belowBid,Askk,aboveAsk,Between]
 
+def find_clusters(numbers, threshold):
+    clusters = []
+    current_cluster = [numbers[0]]
+
+    # Iterate through the numbers
+    for i in range(1, len(numbers)):
+        # Check if the current number is within the threshold distance from the last number in the cluster
+        if abs(numbers[i] - current_cluster[-1]) <= threshold:
+            current_cluster.append(numbers[i])
+        else:
+            # If the current number is outside the threshold, store the current cluster and start a new one
+            clusters.append(current_cluster)
+            current_cluster = [numbers[i]]
+
+    # Append the last cluster
+    clusters.append(current_cluster)
+    
+    return clusters
+
 symbolNumList = ['5602', '13743', '44740', '1101', '80420', '2552', '2259', '156627', '156755', '1545', '4122', '270851', '948' ]
 symbolNameList = ['ES','NQ', 'GC', 'HG', 'YM', 'RTY', '6N', '6E', '6A', '6C', 'SI', 'CL', 'NG'  ]
 
@@ -427,7 +446,7 @@ def update_graph_live(n_intervals, data):
 
     #fig.add_trace(go.Scatter(x=df['time'], y=df['1ema'], mode='lines', opacity=0.15, name='1ema', line=dict(color='black')))
     
-
+    '''
     sortadlist = newwT[:40]
     for v in range(len(sortadlist)):
         fig.add_trace(go.Scatter(x=df['time'],
@@ -443,7 +462,67 @@ def update_graph_live(n_intervals, data):
                                 
                                 ),
                      )
-        
+    '''
+    sortadlist = newwT
+    data = [i[0] for i in sortadlist[:100]]
+    data.sort(reverse=True)
+    differences = [abs(data[i + 1] - data[i]) for i in range(len(data) - 1)]
+    average_difference = sum(differences) / len(differences)
+    cdata = find_clusters(data, average_difference)
+    
+    mazz = max([len(i) for i in cdata])
+    for i in cdata:
+        if len(i) >= 5:
+            opac = round((len(i)/mazz)/1.2,2)
+            fig.add_shape(type="rect",
+                      y0=i[0], y1=i[len(i)-1], x0=-1, x1=len(df),
+                      fillcolor="darkcyan",
+                      opacity=opac)
+            
+            bidCount = 0
+            askCount = 0
+            for x in sortadlist:
+                if x[0] >= i[len(i)-1] and x[0] <= i[0]:
+                    if x[3] == 'B':
+                        bidCount+= x[1]
+                    elif x[3] == 'A':
+                        askCount+= x[1]
+
+            if bidCount+askCount > 0:       
+                askDec = round(askCount/(bidCount+askCount),2)
+                bidDec = round(bidCount/(bidCount+askCount),2)
+            else:
+                askDec = 0
+                bidDec = 0
+
+
+            
+            fig.add_trace(go.Scatter(x=df['time'],
+                                 y= [i[0]]*len(df['time']) ,
+                                 line_color='rgba(0,139,139,'+str(opac)+')',
+                                 text =str(i[0])+ ' (' + str(len(i))+ ') Ask:('+ str(askDec) + ') '+str(askCount)+' | Bid: ('+ str(bidDec) +') '+str(bidCount),
+                                 textposition="bottom left",
+                                 name=str(i[0])+ ' (' + str(len(i))+ ') Ask:('+ str(askDec) + ') '+str(askCount)+' | Bid: ('+ str(bidDec) +') '+str(bidCount),
+                                 showlegend=False,
+                                 mode= 'lines',
+                                
+                                ),
+                      )
+
+            fig.add_trace(go.Scatter(x=df['time'],
+                                 y= [i[len(i)-1]]*len(df['time']) ,
+                                 line_color='rgba(0,139,139,'+str(opac)+')',
+                                 text = str(i[len(i)-1])+ ' (' + str(len(i))+ ') Ask:('+ str(askDec) + ') '+str(askCount)+' | Bid: ('+ str(bidDec) +') '+str(bidCount),
+                                 textposition="bottom left",
+                                 name= str(i[len(i)-1])+ ' (' + str(len(i))+ ') Ask:('+ str(askDec) + ') '+str(askCount)+' | Bid: ('+ str(bidDec) +') '+str(bidCount),
+                                 showlegend=False,
+                                 mode= 'lines',
+                                
+                                ),
+                      )
+    
+
+    '''   
     for trd in newwT[:50]:
         trd.append(df['timestamp'].searchsorted(trd[2])-1)
         
@@ -471,7 +550,6 @@ def update_graph_live(n_intervals, data):
         except(KeyError):
             continue 
 
-    '''
     localMin = argrelextrema(df.close.values, np.less_equal, order=120)[0] 
     localMax = argrelextrema(df.close.values, np.greater_equal, order=120)[0]
     
