@@ -522,12 +522,12 @@ def update_graph_live(n_intervals, data):
                       )
     
 
-    '''   
-    for trd in newwT[:50]:
+      
+    for trd in sortadlist[:50]:
         trd.append(df['timestamp'].searchsorted(trd[2])-1)
         
     
-    for trds in newwT[:50]:
+    for trds in sortadlist[:50]:
         try:
             if str(trds[3]) == 'A':
                 vallue = 'sell'
@@ -549,7 +549,7 @@ def update_graph_live(n_intervals, data):
             ),)
         except(KeyError):
             continue 
-
+    ''' 
     localMin = argrelextrema(df.close.values, np.less_equal, order=120)[0] 
     localMax = argrelextrema(df.close.values, np.greater_equal, order=120)[0]
     
