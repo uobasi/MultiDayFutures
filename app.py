@@ -1031,9 +1031,10 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['50ema'], mode='lines', opacity=0.50,name='50ema',marker_color='rgba(0,0,0)'))
 
     # Update layout
-    fig.update_layout(title=stkName+' Chart',
+    fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
                       xaxis_title='Time',
                       yaxis_title='Price',
+                      height=890,
                       xaxis_rangeslider_visible=False, ) #showlegend=False
 
     # Show the chart
