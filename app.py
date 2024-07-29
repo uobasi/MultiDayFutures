@@ -1034,7 +1034,7 @@ def update_graph_live(n_intervals, data):
     fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
                       xaxis_title='Time',
                       yaxis_title='Price',
-                      height=800,
+                      height=700,
                       xaxis_rangeslider_visible=False, ) #showlegend=False
 
     # Show the chart
