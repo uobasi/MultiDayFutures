@@ -1030,6 +1030,21 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['200ema'], mode='lines', opacity=0.50,name='200ema',marker_color='rgba(0,0,0)'))
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['50ema'], mode='lines', opacity=0.50,name='50ema',marker_color='rgba(0,0,0)'))
 
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_2'], mode='lines', opacity=0.1, name='UPPERVWAP2', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N2'], mode='lines', opacity=0.1, name='LOWERVWAP2', line=dict(color='black')))
+
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_25'], mode='lines', opacity=0.15, name='UPPERVWAP2.5', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N25'], mode='lines', opacity=0.15, name='LOWERVWAP2.5', line=dict(color='black')))
+   
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_1'], mode='lines', opacity=0.1, name='UPPERVWAP1', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N1'], mode='lines', opacity=0.1, name='LOWERVWAP1', line=dict(color='black')))
+            
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_15'], mode='lines', opacity=0.1, name='UPPERVWAP1.5', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N15'], mode='lines', opacity=0.1, name='LOWERVWAP1.5', line=dict(color='black')))
+
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_0'], mode='lines', opacity=0.1, name='UPPERVWAP0.5', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N0'], mode='lines', opacity=0.1, name='LOWERVWAP0.5', line=dict(color='black')))
+
     # Update layout
     fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
                       xaxis_title='Time',
