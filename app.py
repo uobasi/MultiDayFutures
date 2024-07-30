@@ -1051,11 +1051,12 @@ def update_graph_live(n_intervals, data):
                       yaxis_title='Price',
                       height=700,
                       xaxis_rangeslider_visible=False,
-                      xaxis=dict(range=[int(len(df)*0.80), len(df)]) ) #showlegend=False
+                      xaxis=dict(range=[int(len(df)*0.83), len(df)]),
+                      yaxis=dict(range=[min([i for i in df['STDEV_ N25'][int(len(df)*0.83):len(df)]]), max([i for i in df['STDEV_25'][int(len(df)*0.83):len(df)]])])) #showlegend=False
     
     #fig.update_layout(
     ##xaxis=dict(range=[2, 4]),  # Zoom in on x-axis between 2 and 4
-    #yaxis=dict(range=[11, 13])  # Zoom in on y-axis between 11 and 13
+      # Zoom in on y-axis between 11 and 13
 
 
     # Show the chart
