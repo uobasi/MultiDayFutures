@@ -1018,12 +1018,11 @@ def update_graph_live(n_intervals, data):
         
     df = combined_df
     
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, shared_yaxes=True,
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, shared_yaxes=True,
                         specs=[[{}],
-                               [{}],
-                               [{}]], #[{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
+                               [{}],], #[{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
                          horizontal_spacing=0.00, vertical_spacing=0.00, # subplot_titles=(stkName +' '+ str(datetime.now().time()))' (Sell:'+str(putDec)+' ('+str(round(NumPut,2))+') | '+'Buy:'+str(CallDec)+' ('+str(round(NumCall,2))+') \n '+' (Sell:'+str(thputDec)+' ('+str(round(thNumPut,2))+') | '+'Buy:'+str(thCallDec)+' ('+str(round(thNumCall,2))+') \n '
-                         row_width=[0.15,0.15,0.80,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 
+                         row_width=[0.2,0.80,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 
 
     
     
