@@ -1017,12 +1017,23 @@ def update_graph_live(n_intervals, data):
         
         
     df = combined_df
+    
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, shared_yaxes=True,
+                        specs=[[{}],
+                               [{}],
+                               [{}]], #[{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
+                         horizontal_spacing=0.00, vertical_spacing=0.00, # subplot_titles=(stkName +' '+ str(datetime.now().time()))' (Sell:'+str(putDec)+' ('+str(round(NumPut,2))+') | '+'Buy:'+str(CallDec)+' ('+str(round(NumCall,2))+') \n '+' (Sell:'+str(thputDec)+' ('+str(round(thNumPut,2))+') | '+'Buy:'+str(thCallDec)+' ('+str(round(thNumCall,2))+') \n '
+                         row_width=[0.15,0.15,0.80,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 
 
-    fig = go.Figure(data=[go.Candlestick(x=pd.Series([i for i in range(len(df))]),
-                                         open=df['open'],
-                                         high=df['high'],
-                                         low=df['low'],
-                                         close=df['close'])])
+    
+    
+    fig.add_trace(go.Candlestick(x=pd.Series([i for i in range(len(df))]),
+                                 open=df['open'],
+                                 high=df['high'],
+                                 low=df['low'],
+                                 close=df['close'],
+                                 name="OHLC"),
+                  row=1, col=1)
 
 
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['POC'], mode='lines',name='POC',marker_color='#0000FF'))
@@ -1046,18 +1057,44 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N0'], mode='lines', opacity=0.1, name='LOWERVWAP0.5', line=dict(color='black')))
 
     # Update layout
-    fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
-                      xaxis_title='Time',
-                      yaxis_title='Price',
-                      height=700,
-                      xaxis_rangeslider_visible=False,
-                      xaxis=dict(range=[int(len(df)*0.92), len(df)]),
-                      yaxis=dict(range=[min([i for i in combined_df['STDEV_N25'][int(len(df)*0.92):len(df)]]), max([i for i in combined_df['STDEV_25'][int(len(df)*0.92):len(df)]])])) #showlegend=False
     
     #fig.update_layout(
     ##xaxis=dict(range=[2, 4]),  # Zoom in on x-axis between 2 and 4
       # Zoom in on y-axis between 11 and 13
-
+     
+    fig.add_trace(
+        go.Bar(
+            x=pd.Series([i for i in range(len(df))]),
+            y=df['buyDiffSum'],
+            #textposition='auto',
+            #orientation='h',
+            #width=0.2,
+            marker_color='teal',
+            hovertext=pd.Series([i for i in df['buyDiffSum']]),   
+        ),
+         row=2, col=1
+    )
+    
+    fig.add_trace(
+        go.Bar(
+            x=pd.Series([i for i in range(len(df))]),
+            y=df['sellDiffSum'],
+            #textposition='auto',
+            #orientation='h',
+            #width=0.2,
+            marker_color='crimson',
+            hovertext=pd.Series([i for i in df['sellDiffSum']]),   
+        ),
+         row=2, col=1
+    )
+    
+    
+    fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
+                      height=750,
+                      xaxis_rangeslider_visible=False,
+                      xaxis=dict(range=[int(len(df)*0.92), len(df)]),
+                      yaxis=dict(range=[min([i for i in combined_df['STDEV_N25'][int(len(df)*0.92):len(df)]]), max([i for i in combined_df['STDEV_25'][int(len(df)*0.92):len(df)]])])) #showlegend=False
+        
 
     # Show the chart
     #fig.show() 
