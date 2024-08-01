@@ -1102,7 +1102,7 @@ def update_graph_live(n_intervals, data):
             if df['Momentum'][val] < df['Momentum'][val-1]:
                 color='crimson' 
         colors.append(color)
-    fig.add_trace(go.Bar(x=df['time'], y=df['Momentum'], marker_color =colors ), row=2, col=1)
+    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['Momentum'], marker_color =colors ), row=2, col=1)
     
     '''
     fig.add_trace(
