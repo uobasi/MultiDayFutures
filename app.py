@@ -339,33 +339,6 @@ def find_clusters(numbers, threshold):
     
     return clusters
 
-
-def calculate_ttm_squeeze(df, n=13):
-    '''
-    df['20sma'] = df['close'].rolling(window=20).mean()
-    highest = df['high'].rolling(window = 20).max()
-    lowest = df['low'].rolling(window = 20).min()
-    m1 = (highest + lowest)/2 
-    df['Momentum'] = (df['close'] - (m1 + df['20sma'])/2)
-    fit_y = np.array(range(0,20))
-    df['Momentum'] = df['Momentum'].rolling(window = 20).apply(lambda x: np.polyfit(fit_y, x, 1)[0] * (20-1) + np.polyfit(fit_y, x, 1)[1], raw=True)
-    
-    '''
-    #calculate_bollinger_bands(df)
-    #calculate_keltner_channels(df)
-    #df['Squeeze'] = (df['upper_band'] - df['lower_band']) - (df['upper_keltner'] - df['lower_keltner'])
-    #df['Squeeze_On'] = df['Squeeze'] < 0
-    #df['Momentum'] = df['close'] - df['close'].shift(20)
-    df['20sma'] = df['close'].rolling(window=n).mean()
-    highest = df['high'].rolling(window = n).max()
-    lowest = df['low'].rolling(window = n).min()
-    m1 = (highest + lowest)/2 
-    df['Momentum'] = (df['close'] - (m1 + df['20sma'])/2)
-    fit_y = np.array(range(0,n))
-    df['Momentum'] = df['Momentum'].rolling(window = n).apply(lambda x: np.polyfit(fit_y, x, 1)[0] * (n-1) + np.polyfit(fit_y, x, 1)[1], raw=True)
-    
-    
-
 import plotly.graph_objects as go
 import plotly.io as pio
 pio.renderers.default='browser'
@@ -1045,8 +1018,6 @@ def update_graph_live(n_intervals, data):
         
     df = combined_df
     
-    calculate_ttm_squeeze(df)
-    
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, shared_yaxes=True,
                         specs=[[{}],
                                [{}],], #[{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
@@ -1090,21 +1061,6 @@ def update_graph_live(n_intervals, data):
     ##xaxis=dict(range=[2, 4]),  # Zoom in on x-axis between 2 and 4
       # Zoom in on y-axis between 11 and 13
      
-    
-    colors = ['maroon']
-    for val in range(1,len(df['Momentum'])):
-        if df['Momentum'][val] > 0:
-            color = 'teal'
-            if df['Momentum'][val] > df['Momentum'][val-1]:
-                color = '#54C4C1' 
-        else:
-            color = 'maroon'
-            if df['Momentum'][val] < df['Momentum'][val-1]:
-                color='crimson' 
-        colors.append(color)
-    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['Momentum'], marker_color =colors ), row=2, col=1)
-    
-    '''
     fig.add_trace(
         go.Bar(
             x=pd.Series([i for i in range(len(df))]),
@@ -1130,7 +1086,6 @@ def update_graph_live(n_intervals, data):
         ),
          row=2, col=1
     )
-    '''
     
     
     fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
