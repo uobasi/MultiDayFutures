@@ -1060,7 +1060,13 @@ def update_graph_live(n_intervals, data):
     #fig.update_layout(
     ##xaxis=dict(range=[2, 4]),  # Zoom in on x-axis between 2 and 4
       # Zoom in on y-axis between 11 and 13
-     
+
+    coll = [     'teal' if i > 0
+                else 'crimson' if i < 0
+                else 'gray' for i in df['buySellDif']]
+    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['buySellDif'], marker_color=coll), row=2, col=1)
+
+    ''' 
     fig.add_trace(
         go.Bar(
             x=pd.Series([i for i in range(len(df))]),
@@ -1086,6 +1092,7 @@ def update_graph_live(n_intervals, data):
         ),
          row=2, col=1
     )
+    '''
     
     
     fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
