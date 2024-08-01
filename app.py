@@ -1089,6 +1089,7 @@ def update_graph_live(n_intervals, data):
     
     
     fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
+                      showlegend=False,
                       height=750,
                       xaxis_rangeslider_visible=False,
                       xaxis=dict(range=[int(len(df)*0.92), len(df)]),
