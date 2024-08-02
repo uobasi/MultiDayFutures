@@ -1059,6 +1059,11 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['LowVA'], mode='lines', opacity=0.5, name='LowVA', line=dict(color='black')))
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['HighVA'], mode='lines', opacity=0.5, name='HighVA', line=dict(color='black')))
 
+
+
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['uppervwapAvg'], mode='lines', opacity=0.5, name='uppervwapAvg', ))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['lowervwapAvg'], mode='lines', opacity=0.5, name='lowervwapAvg', ))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapAvg'], mode='lines', opacity=0.5, name='vwapAvg', ))
     # Update layout
     
     #fig.update_layout(
