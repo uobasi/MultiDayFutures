@@ -1056,8 +1056,8 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N0'], mode='lines', opacity=0.1, name='LOWERVWAP0.5', line=dict(color='black')))
     '''
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['LowVA'], mode='lines', opacity=0.5, name='LowVA', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['HighVA'], mode='lines', opacity=0.5, name='HighVA', line=dict(color='black')))
+    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['LowVA'], mode='lines', opacity=0.5, name='LowVA', line=dict(color='black')))
+    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['HighVA'], mode='lines', opacity=0.5, name='HighVA', line=dict(color='black')))
 
 
 
