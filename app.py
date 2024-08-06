@@ -1080,12 +1080,12 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(
         go.Bar(
             x=pd.Series([i for i in range(len(df))]),
-            y=df['buyDiffSum'],
+            y=df['topOrderBuy'],
             #textposition='auto',
             #orientation='h',
             #width=0.2,
             marker_color='teal',
-            hovertext=pd.Series([i for i in df['buyDiffSum']]),   
+            hovertext=pd.Series([i for i in df['topOrderBuy']]),   
         ),
          row=3, col=1
     )
@@ -1093,12 +1093,12 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(
         go.Bar(
             x=pd.Series([i for i in range(len(df))]),
-            y=df['sellDiffSum'],
+            y=df['topOrderSell'],
             #textposition='auto',
             #orientation='h',
             #width=0.2,
             marker_color='crimson',
-            hovertext=pd.Series([i for i in df['sellDiffSum']]),   
+            hovertext=pd.Series([i for i in df['topOrderSell']]),   
         ),
          row=3, col=1
     )
