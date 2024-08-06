@@ -1071,9 +1071,11 @@ def update_graph_live(n_intervals, data):
     ##xaxis=dict(range=[2, 4]),  # Zoom in on x-axis between 2 and 4
       # Zoom in on y-axis between 11 and 13
 
+    tst = pd.Series([df['topOrderBuy'][i] - df['topOrderSell'][i] for i in  range(len(df))])
     coll = [     'teal' if i > 0
                 else 'crimson' if i < 0
-                else 'gray' for i in df['buySellDif']]
+                else 'gray' for i in ] df['buySellDif']
+    
     fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['buySellDif'], marker_color=coll), row=2, col=1)
 
     
