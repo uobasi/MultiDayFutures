@@ -112,20 +112,20 @@ def PPP(df):
     stdev_multiple_2 = 2.00
     stdev_multiple_25 = 2.50
 
-    df['STDEV_0'] = df.vwapCum + stdev_multiple_0 * df['STDEV_TV']
-    df['STDEV_N0'] = df.vwapCum - stdev_multiple_0 * df['STDEV_TV']
+    df['STDEV_0'] = df.vwap + stdev_multiple_0 * df['STDEV_TV']
+    df['STDEV_N0'] = df.vwap - stdev_multiple_0 * df['STDEV_TV']
 
-    df['STDEV_1'] = df.vwapCum + stdev_multiple_1 * df['STDEV_TV']
-    df['STDEV_N1'] = df.vwapCum - stdev_multiple_1 * df['STDEV_TV']
+    df['STDEV_1'] = df.vwap + stdev_multiple_1 * df['STDEV_TV']
+    df['STDEV_N1'] = df.vwap - stdev_multiple_1 * df['STDEV_TV']
     
-    df['STDEV_15'] = df.vwapCum + stdev_multiple_1_5 * df['STDEV_TV']
-    df['STDEV_N15'] = df.vwapCum - stdev_multiple_1_5 * df['STDEV_TV']
+    df['STDEV_15'] = df.vwap + stdev_multiple_1_5 * df['STDEV_TV']
+    df['STDEV_N15'] = df.vwap - stdev_multiple_1_5 * df['STDEV_TV']
 
-    df['STDEV_2'] = df.vwapCum + stdev_multiple_2 * df['STDEV_TV']
-    df['STDEV_N2'] = df.vwapCum - stdev_multiple_2 * df['STDEV_TV']
+    df['STDEV_2'] = df.vwap + stdev_multiple_2 * df['STDEV_TV']
+    df['STDEV_N2'] = df.vwap - stdev_multiple_2 * df['STDEV_TV']
     
-    df['STDEV_25'] = df.vwapCum + stdev_multiple_25 * df['STDEV_TV']
-    df['STDEV_N25'] = df.vwapCum - stdev_multiple_25 * df['STDEV_TV']
+    df['STDEV_25'] = df.vwap + stdev_multiple_25 * df['STDEV_TV']
+    df['STDEV_N25'] = df.vwap - stdev_multiple_25 * df['STDEV_TV']
 
 def PPPCum(df):
 
@@ -136,20 +136,20 @@ def PPPCum(df):
     stdev_multiple_2 = 2.00
     stdev_multiple_25 = 2.50
 
-    df['STDEV_0Cum'] = df.vwap + stdev_multiple_0 * df['STDEV_TVCum']
-    df['STDEV_N0Cum'] = df.vwap - stdev_multiple_0 * df['STDEV_TVCum']
+    df['STDEV_0Cum'] = df.vwapCum + stdev_multiple_0 * df['STDEV_TVCum']
+    df['STDEV_N0Cum'] = df.vwapCum - stdev_multiple_0 * df['STDEV_TVCum']
 
-    df['STDEV_1Cum'] = df.vwap + stdev_multiple_1 * df['STDEV_TVCum']
-    df['STDEV_N1Cum'] = df.vwap - stdev_multiple_1 * df['STDEV_TVCum']
+    df['STDEV_1Cum'] = df.vwapCum + stdev_multiple_1 * df['STDEV_TVCum']
+    df['STDEV_N1Cum'] = df.vwapCum - stdev_multiple_1 * df['STDEV_TVCum']
     
-    df['STDEV_15Cum'] = df.vwap + stdev_multiple_1_5 * df['STDEV_TVCum']
-    df['STDEV_N15Cum'] = df.vwap - stdev_multiple_1_5 * df['STDEV_TVCum']
+    df['STDEV_15Cum'] = df.vwapCum + stdev_multiple_1_5 * df['STDEV_TVCum']
+    df['STDEV_N15Cum'] = df.vwapCum - stdev_multiple_1_5 * df['STDEV_TVCum']
 
-    df['STDEV_2Cum'] = df.vwap + stdev_multiple_2 * df['STDEV_TVCum']
-    df['STDEV_N2Cum'] = df.vwap - stdev_multiple_2 * df['STDEV_TVCum']
+    df['STDEV_2Cum'] = df.vwapCum + stdev_multiple_2 * df['STDEV_TVCum']
+    df['STDEV_N2Cum'] = df.vwapCum - stdev_multiple_2 * df['STDEV_TVCum']
     
-    df['STDEV_25Cum'] = df.vwap + stdev_multiple_25 * df['STDEV_TVCum']
-    df['STDEV_N25Cum'] = df.vwap - stdev_multiple_25 * df['STDEV_TVCum']
+    df['STDEV_25Cum'] = df.vwapCum + stdev_multiple_25 * df['STDEV_TVCum']
+    df['STDEV_N25Cum'] = df.vwapCum - stdev_multiple_25 * df['STDEV_TVCum']
 
 
 def VMA(df):
@@ -1160,7 +1160,7 @@ def update_graph_live(n_intervals, data):
     '''
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['POC'].cumsum() / (df.index + 1), mode='lines',name='POCAVG',marker_color='black'))
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['DailyPOCAVG'], mode='lines',name='DailyPOCAVG',marker_color='black'))
- 
+
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_2Cum'], mode='lines', opacity=0.1, name='UPPERVWAP2', line=dict(color='black')))
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N2Cum'], mode='lines', opacity=0.1, name='LOWERVWAP2', line=dict(color='black')))
 
