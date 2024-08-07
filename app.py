@@ -709,6 +709,7 @@ def update_graph_live(n_intervals, data):
     df['HighVA'] = pd.Series([i[1] for i in valist])
     df['POC']  = pd.Series([i[2] for i in valist])
     df['indes'] = pd.Series([i for i in range(0,len(df))])
+    df['DailyPOCAVG']= df['POC'].cumsum() / (df.index + 1)
     #---------------------------------------------------------------    
     finalTpo = []
     newTPO = []
