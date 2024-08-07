@@ -1159,8 +1159,6 @@ def update_graph_live(n_intervals, data):
     )
     '''
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['POC'].cumsum() / (df.index + 1), mode='lines',name='POCAVG',marker_color='black'))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['LowVA'].cumsum() / (df.index + 1), mode='lines',name='LowVAAVG',marker_color='black'))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['HighVA'].cumsum() / (df.index + 1), mode='lines',name='HighVAAVG',marker_color='black'))
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['DailyPOCAVG'], mode='lines',name='DailyPOCAVG',marker_color='black'))
 
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_2Cum'], mode='lines', opacity=0.1, name='UPPERVWAP2', line=dict(color='black')))
