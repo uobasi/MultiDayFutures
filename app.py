@@ -71,12 +71,36 @@ def vwap(df):
     # return df.assign(vwap=(tp * v).cumsum() / v.cumsum())
 
 
+
+def vwapCum(df):
+    v = df['volume'].values
+    h = df['high'].values
+    l = df['low'].values
+    # print(v)
+    df['vwapCum'] = np.cumsum(v*(h+l)/2) / np.cumsum(v)
+    df['volumeSumCum'] = df['volume'].cumsum()
+    df['volume2SumCum'] = (v*((h+l)/2)*((h+l)/2)).cumsum()
+    #df['disVWAP'] = (abs(df['close'] - df['vwap']) / ((df['close'] + df['vwap']) / 2)) * 100
+    #df['disVWAPOpen'] = (abs(df['open'] - df['vwap']) / ((df['open'] + df['vwap']) / 2)) * 100
+    #df['disEMAtoVWAP'] = ((df['close'].ewm(span=12, adjust=False).mean() - df['vwap'])/df['vwap']) * 100
+
+
+
 def sigma(df):
     try:
         val = df.volume2Sum / df.volumeSum - df.vwap * df.vwap
     except(ZeroDivisionError):
         val = df.volume2Sum / (df.volumeSum+0.000000000001) - df.vwap * df.vwap
     return math.sqrt(val) if val >= 0 else val
+
+
+def sigmaCum(df):
+    try:
+        val = df.volume2SumCum / df.volumeSumCum - df.vwapCum * df.vwapCum
+    except(ZeroDivisionError):
+        val = df.volume2SumCum / (df.volumeSumCum+0.000000000001) - df.vwapCum * df.vwapCum
+    return math.sqrt(val) if val >= 0 else val
+
 
 
 def PPP(df):
@@ -102,6 +126,30 @@ def PPP(df):
     
     df['STDEV_25'] = df.vwap + stdev_multiple_25 * df['STDEV_TV']
     df['STDEV_N25'] = df.vwap - stdev_multiple_25 * df['STDEV_TV']
+
+def PPPCum(df):
+
+    df['STDEV_TVCum'] = df.apply(sigmaCum, axis=1)
+    stdev_multiple_0 = 0.50
+    stdev_multiple_1 = 1
+    stdev_multiple_1_5 = 1.5
+    stdev_multiple_2 = 2.00
+    stdev_multiple_25 = 2.50
+
+    df['STDEV_0Cum'] = df.vwap + stdev_multiple_0 * df['STDEV_TVCum']
+    df['STDEV_N0Cum'] = df.vwap - stdev_multiple_0 * df['STDEV_TVCum']
+
+    df['STDEV_1Cum'] = df.vwap + stdev_multiple_1 * df['STDEV_TVCum']
+    df['STDEV_N1Cum'] = df.vwap - stdev_multiple_1 * df['STDEV_TVCum']
+    
+    df['STDEV_15Cum'] = df.vwap + stdev_multiple_1_5 * df['STDEV_TVCum']
+    df['STDEV_N15Cum'] = df.vwap - stdev_multiple_1_5 * df['STDEV_TVCum']
+
+    df['STDEV_2Cum'] = df.vwap + stdev_multiple_2 * df['STDEV_TVCum']
+    df['STDEV_N2Cum'] = df.vwap - stdev_multiple_2 * df['STDEV_TVCum']
+    
+    df['STDEV_25Cum'] = df.vwap + stdev_multiple_25 * df['STDEV_TVCum']
+    df['STDEV_N25Cum'] = df.vwap - stdev_multiple_25 * df['STDEV_TVCum']
 
 
 def VMA(df):
@@ -1015,9 +1063,12 @@ def update_graph_live(n_intervals, data):
         
         combined_df = pd.concat([prevDf, df], ignore_index=True)
         #combined_df.to_csv(stkName+'Data-4.csv', index=False) 
-        
-        
+
+    vwapCum(combined_df)
+    PPPCum(combined_df)   
     df = combined_df
+
+    
     
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, shared_yaxes=True,
                         specs=[[{}],
@@ -1110,6 +1161,22 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['POC'].cumsum() / (df.index + 1), mode='lines',name='POCAVG',marker_color='black'))
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['DailyPOCAVG'], mode='lines',name='DailyPOCAVG',marker_color='black'))
     
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_2Cum'], mode='lines', opacity=0.1, name='UPPERVWAP2', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N2Cum'], mode='lines', opacity=0.1, name='LOWERVWAP2', line=dict(color='black')))
+
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_25Cum'], mode='lines', opacity=0.15, name='UPPERVWAP2.5', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N25Cum'], mode='lines', opacity=0.15, name='LOWERVWAP2.5', line=dict(color='black')))
+   
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_1Cum'], mode='lines', opacity=0.1, name='UPPERVWAP1', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N1Cum'], mode='lines', opacity=0.1, name='LOWERVWAP1', line=dict(color='black')))
+            
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_15Cum'], mode='lines', opacity=0.1, name='UPPERVWAP1.5', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N15Cum'], mode='lines', opacity=0.1, name='LOWERVWAP1.5', line=dict(color='black')))
+
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_0Cum'], mode='lines', opacity=0.1, name='UPPERVWAP0.5', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N0Cum'], mode='lines', opacity=0.1, name='LOWERVWAP0.5', line=dict(color='black')))
+
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapCum'], mode='lines', opacity=0.1, name='vwapCum', line=dict(color='crimson')))
     
     fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
                       showlegend=False,
