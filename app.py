@@ -1189,7 +1189,7 @@ def update_graph_live(n_intervals, data):
                       height=750,
                       xaxis_rangeslider_visible=False,
                       xaxis=dict(range=[int(len(df)*0.92), len(df)]),
-                      yaxis=dict(range=[min([i for i in combined_df['STDEV_N25'][int(len(df)*0.92):len(df)]]), max([i for i in combined_df['STDEV_25'][int(len(df)*0.92):len(df)]])])) #showlegend=False
+                      yaxis=dict(range=[min([i for i in combined_df['low'][int(len(df)*0.92):len(df)]]), max([i for i in combined_df['high'][int(len(df)*0.92):len(df)]])])) #showlegend=False
         
 
     # Show the chart
