@@ -1184,6 +1184,19 @@ def update_graph_live(n_intervals, data):
 
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapCum'], mode='lines', name='vwapCum', line=dict(color='crimson')))
     
+    fig.update_xaxes(
+        range=[int(len(df) * 0.92), len(df)],
+        row=2, col=1
+    )
+    # Update y-axis range for the specific subplot
+    fig.update_yaxes(
+        range=[
+            min([i for i in combined_df['buySellDif'][int(len(df) * 0.92):len(df)]]), 
+            max([i for i in combined_df['buySellDif'][int(len(df) * 0.92):len(df)]])
+        ],
+        row=2, col=1
+    )
+
     fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
                       showlegend=False,
                       height=750,
