@@ -1178,6 +1178,22 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_0Cum'], mode='lines', opacity=0.5, name='UPPERVWAP0.5', line=dict(color='black')))
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N0Cum'], mode='lines', opacity=0.5, name='LOWERVWAP0.5', line=dict(color='black')))
 
+
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_075Cum'], mode='lines', opacity=0.5, name='UPPERVWAP0.75', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N075Cum'], mode='lines', opacity=0.5, name='LOWERVWAP0.75', line=dict(color='black')))
+            
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_125Cum'], mode='lines', opacity=0.5, name='UPPERVWAP1.25', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N125Cum'], mode='lines', opacity=0.5, name='LOWERVWAP1.25', line=dict(color='black')))
+
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_175Cum'], mode='lines', opacity=0.5, name='UPPERVWAP1.75', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N175Cum'], mode='lines', opacity=0.5, name='LOWERVWAP1.75', line=dict(color='black')))
+
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_225Cum'], mode='lines', opacity=0.5, name='UPPERVWAP2.25', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N225Cum'], mode='lines', opacity=0.5, name='LOWERVWAP2.25', line=dict(color='black')))
+
+
+
+
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapCum'], mode='lines', name='vwapCum', line=dict(color='crimson')))
     
     fig.update_xaxes(
