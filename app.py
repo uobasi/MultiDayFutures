@@ -131,26 +131,41 @@ def PPPCum(df):
 
     df['STDEV_TVCum'] = df.apply(sigmaCum, axis=1)
     stdev_multiple_0 = 0.50
+    stdev_multiple_0_75 = 0.75
     stdev_multiple_1 = 1
+    stdev_multiple_1_25 = 1.25
     stdev_multiple_1_5 = 1.5
+    stdev_multiple_1_75 = 1.75
     stdev_multiple_2 = 2.00
+    stdev_multiple_2_25 = 2.25
     stdev_multiple_25 = 2.50
 
     df['STDEV_0Cum'] = df.vwapCum + stdev_multiple_0 * df['STDEV_TVCum']
     df['STDEV_N0Cum'] = df.vwapCum - stdev_multiple_0 * df['STDEV_TVCum']
+    
+    df['STDEV_075Cum'] = df.vwapCum + stdev_multiple_0_75 * df['STDEV_TVCum']
+    df['STDEV_N075Cum'] = df.vwapCum - stdev_multiple_0_75 * df['STDEV_TVCum']
 
     df['STDEV_1Cum'] = df.vwapCum + stdev_multiple_1 * df['STDEV_TVCum']
     df['STDEV_N1Cum'] = df.vwapCum - stdev_multiple_1 * df['STDEV_TVCum']
     
+    df['STDEV_125Cum'] = df.vwapCum + stdev_multiple_1_25 * df['STDEV_TVCum']
+    df['STDEV_N125Cum'] = df.vwapCum - stdev_multiple_1_25 * df['STDEV_TVCum']
+    
     df['STDEV_15Cum'] = df.vwapCum + stdev_multiple_1_5 * df['STDEV_TVCum']
     df['STDEV_N15Cum'] = df.vwapCum - stdev_multiple_1_5 * df['STDEV_TVCum']
+    
+    df['STDEV_175Cum'] = df.vwapCum + stdev_multiple_1_75 * df['STDEV_TVCum']
+    df['STDEV_N175Cum'] = df.vwapCum - stdev_multiple_1_75 * df['STDEV_TVCum']
 
     df['STDEV_2Cum'] = df.vwapCum + stdev_multiple_2 * df['STDEV_TVCum']
     df['STDEV_N2Cum'] = df.vwapCum - stdev_multiple_2 * df['STDEV_TVCum']
     
+    df['STDEV_225Cum'] = df.vwapCum + stdev_multiple_2_25 * df['STDEV_TVCum']
+    df['STDEV_N225Cum'] = df.vwapCum - stdev_multiple_2_25 * df['STDEV_TVCum']
+    
     df['STDEV_25Cum'] = df.vwapCum + stdev_multiple_25 * df['STDEV_TVCum']
     df['STDEV_N25Cum'] = df.vwapCum - stdev_multiple_25 * df['STDEV_TVCum']
-
 
 def VMA(df):
     df['vma'] = df['volume'].rolling(4).mean()
