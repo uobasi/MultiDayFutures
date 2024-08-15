@@ -130,6 +130,7 @@ def PPP(df):
 def PPPCum(df):
 
     df['STDEV_TVCum'] = df.apply(sigmaCum, axis=1)
+    stdev_multiple_0_25 = 0.25
     stdev_multiple_0 = 0.50
     stdev_multiple_0_75 = 0.75
     stdev_multiple_1 = 1
@@ -139,6 +140,9 @@ def PPPCum(df):
     stdev_multiple_2 = 2.00
     stdev_multiple_2_25 = 2.25
     stdev_multiple_25 = 2.50
+    
+    df['STDEV_025Cum'] = df.vwapCum + stdev_multiple_0_25 * df['STDEV_TVCum']
+    df['STDEV_N025Cum'] = df.vwapCum - stdev_multiple_0_25 * df['STDEV_TVCum']
 
     df['STDEV_0Cum'] = df.vwapCum + stdev_multiple_0 * df['STDEV_TVCum']
     df['STDEV_N0Cum'] = df.vwapCum - stdev_multiple_0 * df['STDEV_TVCum']
