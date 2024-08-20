@@ -1679,7 +1679,8 @@ def update_graph_live(n_intervals, sname, stored_data, previous_stkName):
     #fig.show() 
     
     return fig, stored_data, previous_stkName
-
+ 
+ 
 if __name__ == '__main__': 
     app.run_server(debug=False, host='0.0.0.0', port=8080)
     #app.run_server(debug=False, use_reloader=False)
