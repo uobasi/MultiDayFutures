@@ -1213,9 +1213,9 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_025Cum'], mode='lines', opacity=0.5, name='UPPERVWAP0.25', line=dict(color='black')))
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N025Cum'], mode='lines', opacity=0.5, name='LOWERVWAP0.25', line=dict(color='black')))
            
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayPOC'], mode='lines', opacity=0.5, name='prevDayPOC', line=dict(color='cyan')))
-       
-
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayPOC'], mode='lines', opacity=0.5, name='prevDayPOC', line=dict(color='crimson')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayHVA'], mode='lines', opacity=0.5, name='prevDayHVA', line=dict(color='green')))   
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayLVA'], mode='lines', opacity=0.5, name='prevDayLVA', line=dict(color='purple'))) 
 
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapCum'], mode='lines', name='vwapCum', line=dict(color='crimson')))
     
