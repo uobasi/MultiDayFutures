@@ -171,6 +171,7 @@ def PPPCum(df):
     df['STDEV_25Cum'] = df.vwapCum + stdev_multiple_25 * df['STDEV_TVCum']
     df['STDEV_N25Cum'] = df.vwapCum - stdev_multiple_25 * df['STDEV_TVCum']
 
+
 def VMA(df):
     df['vma'] = df['volume'].rolling(4).mean()
       
@@ -406,19 +407,17 @@ def find_clusters(numbers, threshold):
     
     return clusters
 
-import plotly.graph_objects as go
-import plotly.io as pio
-pio.renderers.default='browser'
 
 symbolNumList = ['118', '4358', '42012334', '392826', '393','28080', '938', '11232']
 symbolNameList = ['ES', 'NQ', 'YM','CL', 'GC', 'HG', 'NG', 'RTY']
+stored_data = None
 
 
 gclient = storage.Client(project="stockapp-401615")
 bucket = gclient.get_bucket("stockapp-storage")
 
 from dash import Dash, dcc, html, Input, Output, callback, State
-inter = 500000#60000
+inter = 400000#60000
 app = Dash()
 app.layout = html.Div([
     
@@ -454,23 +453,32 @@ def update_output(n_clicks, value):
     else:
         return 'The input symbol was '+str(value)+" is not accepted please try different symbol from  |'ES', 'NQ', 'YM','CL', 'GC', 'HG', 'NG'|  ", 'The input symbol was '+str(value)+" is not accepted please try different symbol  |'ESH4' 'NQH4' 'CLG4' 'GCG4' 'NGG4' 'HGH4' 'YMH4' 'BTCZ3' 'RTYH4'|  "
 
-@callback(Output('graph', 'figure'),
+@callback([Output('graph', 'figure'),
+           Output('data-store', 'data'),
+           Output('previous-stkName', 'data')],
           Input('interval', 'n_intervals'),
-          State('stkName-value', 'data'))
+          [State('stkName-value', 'data'),
+           State('data-store', 'data'),
+           State('previous-stkName', 'data')])
 
 
     
 
 
-def update_graph_live(n_intervals, data):
+def update_graph_live(n_intervals, sname, stored_data, previous_stkName):
     print('inFunction')	
 
-    if data in symbolNameList:
-        stkName = data
+    if sname in symbolNameList:
+        stkName = sname
         symbolNum = symbolNumList[symbolNameList.index(stkName)] 
     else:
         stkName = 'NQ'  
+        sname = 'NQ' 
         symbolNum = symbolNumList[symbolNameList.index(stkName)]
+        
+        
+    if stkName != previous_stkName:
+        stored_data = None
 
 
     
@@ -672,421 +680,848 @@ def update_graph_live(n_intervals, data):
     df['buySellDif'] = pd.Series([i[2]-i[3] for i in timeFrame])
     
     #tradeTimes = [i[6] for i in AllTrades][::-1]
-    epochTimes = [i[2] for i in AllTrades]
-    vplist = []
-    valist = []
-    tpo = []
-    clusterList = []
-    
-    for i in range(len(df['time'])-1):
-        #hs = historV2(df[:i+1],50,{},AllTrades[:(len(tradeTimes) - 1 - tradeTimes.index(df['time'][i+1])) +1],[])
-        hs = historV2(df[:i+1],50,{},AllTrades[:bisect.bisect_left(epochTimes, int(df['timestamp'][i+1]))],[])
+    if stored_data is not None:
+        lastTime = stored_data['dataFrame']['time'][len(stored_data['dataFrame'])-1]
+        lastIndex = df.index[df['time'] == lastTime].tolist()[0]
+        df = df.iloc[lastIndex:]
+        df = df.reset_index()
+        df = df.drop(columns=['index'])
         
-        #time_diffs = [abs((datetime.strptime(time, '%H:%M:%S') - datetime.strptime(df['time'][i+1], '%H:%M:%S')).total_seconds()) for time in tradeTimes]
-    
-        # Find the index of the minimum difference
-        #closest_index = time_diffs.index(min(time_diffs))
-        #hs = historV2(df[:i+1],50,{},AllTrades[:(len(tradeTimes) - 1 - closest_index) +1],[])
-    
-        vplist.append([[xx[0], xx[3], xx[1], xx[7], xx[8]] for xx in hs[0]])
-        valist.append(valueAreaV1(hs[0]))
+        print('NotNewStroed')
+        epochTimes = [i[2] for i in AllTrades]
+        vplist = []
+        valist = []
+        tpo = []
+        clusterList = []
         
-        mTrade = [i for i in AllTrades[:bisect.bisect_left(epochTimes, int(df['timestamp'][i+1]))]]  #AllTrades[:(len(tradeTimes) - 1 - tradeTimes.index(df['time'][i+1])) +1]
+        for i in range(len(df['time'])-1):
+            hs = historV2(df[:i+1],50,{},AllTrades[:bisect.bisect_left(epochTimes, int(df['timestamp'][i+1]))],[])
+
         
-         
-        mTrade = sorted(mTrade, key=lambda d: d[1], reverse=True)
-        
-        for tdd in range(len(mTrade)):
-            mTrade[tdd][4] = tdd
+            vplist.append([[xx[0], xx[3], xx[1], xx[7], xx[8]] for xx in hs[0]])
+            valist.append(valueAreaV1(hs[0]))
             
-        #[mTrade[i].insert(4,i) for i in range(len(mTrade))] 
-        
-        newwT = []
-        for x in mTrade[:100]:
-            newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], df['timestamp'].searchsorted(x[2])-1])
+            mTrade = [i for i in AllTrades[:bisect.bisect_left(epochTimes, int(df['timestamp'][i+1]))]]  #AllTrades[:(len(tradeTimes) - 1 - tradeTimes.index(df['time'][i+1])) +1]
             
-        
+             
+            mTrade = sorted(mTrade, key=lambda d: d[1], reverse=True)
             
-        tpo.append([[i[0], i[1], i[2], i[3], i[4], i[6], i[7]] for i in newwT[:100]])
-        
-        data = [i[0] for i in newwT[:100]]
-        data.sort(reverse=True)
-        differences = [abs(data[i+1] - data[i]) for i in range(len(data) - 1)]
-        try:
+            for tdd in range(len(mTrade)):
+                mTrade[tdd][4] = tdd
+                
+            #[mTrade[i].insert(4,i) for i in range(len(mTrade))] 
+            
+            newwT = []
+            for x in mTrade[:100]:
+                newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], df['timestamp'].searchsorted(x[2])-1])
+                
+            
+                
+            tpo.append([[i[0], i[1], i[2], i[3], i[4], i[6], i[7]] for i in newwT[:100]])
+            
+            data = [i[0] for i in newwT[:100]]
+            data.sort(reverse=True)
+            differences = [abs(data[i+1] - data[i]) for i in range(len(data) - 1)]
+            try:
+                average_difference = sum(differences) / len(differences)
+                cdata = find_clusters(data, average_difference)
+                clust = [i for i in cdata if len(i) >= 5]
+                clusterList.append(clust)
+            except(ZeroDivisionError):
+                clusterList.append([])
+            #break
+        else:
+            hs = historV2(df,50,{},AllTrades,[])
+            vplist.append([[xx[0], xx[3], xx[1], xx[7], xx[8]] for xx in hs[0]])
+            valist.append(valueAreaV1(hs[0]))
+            
+            mTrade = [i for i in AllTrades]
+            
+             
+            mTrade = sorted(mTrade, key=lambda d: d[1], reverse=True)
+            
+            for tdd in range(len(mTrade)):
+                mTrade[tdd][4] = tdd
+                
+            #[mTrade[i].insert(4,i) for i in range(len(mTrade))] 
+            
+            newwT = []
+            for x in mTrade[:100]:
+                newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], df['timestamp'].searchsorted(x[2])-1])
+                
+            
+                
+            tpo.append([[i[0], i[1], i[2], i[3], i[4], i[6], i[7]] for i in newwT[:100]])
+            
+            data = [i[0] for i in newwT[:100]] #150
+            data.sort(reverse=True)
+            differences = [abs(data[i+1] - data[i]) for i in range(len(data) - 1)]
             average_difference = sum(differences) / len(differences)
             cdata = find_clusters(data, average_difference)
-            clust = [i for i in cdata if len(i) >= 5]
+            clust = [i for i in cdata if len(i) >= 5] #6
             clusterList.append(clust)
-        except(ZeroDivisionError):
-            clusterList.append([])
-        #break
-    else:
-        hs = historV2(df,50,{},AllTrades,[])
-        vplist.append([[xx[0], xx[3], xx[1], xx[7], xx[8]] for xx in hs[0]])
-        valist.append(valueAreaV1(hs[0]))
-        
-        mTrade = [i for i in AllTrades]
-        
-         
-        mTrade = sorted(mTrade, key=lambda d: d[1], reverse=True)
-        
-        for tdd in range(len(mTrade)):
-            mTrade[tdd][4] = tdd
-            
-        #[mTrade[i].insert(4,i) for i in range(len(mTrade))] 
-        
-        newwT = []
-        for x in mTrade[:100]:
-            newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], df['timestamp'].searchsorted(x[2])-1])
-            
-        
-            
-        tpo.append([[i[0], i[1], i[2], i[3], i[4], i[6], i[7]] for i in newwT[:100]])
-        
-        data = [i[0] for i in newwT[:100]] #150
-        data.sort(reverse=True)
-        differences = [abs(data[i+1] - data[i]) for i in range(len(data) - 1)]
-        average_difference = sum(differences) / len(differences)
-        cdata = find_clusters(data, average_difference)
-        clust = [i for i in cdata if len(i) >= 5] #6
-        clusterList.append(clust)
-            
-    '''
-    imbalance = []
-    for i in range(len(df['buyDecimal'])):
-        if df['buyDecimal'][i] >= 0.58:
-            mn = df['buyCount'].loc[:i].mean()
-            if df['buyCount'][i] >= mn:
-                imbalance.append(1)
+                
+        '''
+        imbalance = []
+        for i in range(len(df['buyDecimal'])):
+            if df['buyDecimal'][i] >= 0.58:
+                mn = df['buyCount'].loc[:i].mean()
+                if df['buyCount'][i] >= mn:
+                    imbalance.append(1)
+                else:
+                    imbalance.append(0)
+            elif df['sellDecimal'][i] >= 0.58:
+                mn = df['sellCount'].loc[:i].mean()
+                if df['sellCount'][i] >= mn:
+                    imbalance.append(2)
+                else:
+                    imbalance.append(0)
             else:
                 imbalance.append(0)
-        elif df['sellDecimal'][i] >= 0.58:
-            mn = df['sellCount'].loc[:i].mean()
-            if df['sellCount'][i] >= mn:
-                imbalance.append(2)
-            else:
-                imbalance.append(0)
-        else:
-            imbalance.append(0)
-            
-    df['imbalance'] = pd.Series([i for i in imbalance])
-    '''
-    
-    df['LowVA'] = pd.Series([i[0] for i in valist])
-    df['HighVA'] = pd.Series([i[1] for i in valist])
-    df['POC']  = pd.Series([i[2] for i in valist])
-    df['indes'] = pd.Series([i for i in range(0,len(df))])
-    df['DailyPOCAVG']= df['POC'].cumsum() / (df.index + 1)
-    #df['DailyLowVAAVG']= df['LowVA'].cumsum() / (df.index + 1)
-    #df['DailyHighVAAVG']= df['HighVA'].cumsum() / (df.index + 1)
-    #---------------------------------------------------------------    
-    finalTpo = []
-    newTPO = []
-    for i in tpo:
-        for x in i:
-            newTPO.append(x[0])
-            newTPO.append(x[1])
-            newTPO.append(x[6])
-            if x[3] == 'A':
-               newTPO.append(0)
-            elif x[3] == 'B':
-               newTPO.append(1)
-            else:
-               newTPO.append(2)
-            newTPO.append(x[4])
-        finalTpo.append(newTPO)
+                
+        df['imbalance'] = pd.Series([i for i in imbalance])
+        '''
+        
+        df['LowVA'] = pd.Series([i[0] for i in valist])
+        df['HighVA'] = pd.Series([i[1] for i in valist])
+        df['POC']  = pd.Series([i[2] for i in valist])
+        df['indes'] = pd.Series([i for i in range(0,len(df))])
+        #df['DailyPOCAVG']= df['POC'].cumsum() / (df.index + 1)
+        #df['DailyLowVAAVG']= df['LowVA'].cumsum() / (df.index + 1)
+        #df['DailyHighVAAVG']= df['HighVA'].cumsum() / (df.index + 1)
+        #---------------------------------------------------------------    
+        finalTpo = []
         newTPO = []
-        #print(i)
-        #break
+        for i in tpo:
+            for x in i:
+                newTPO.append(x[0])
+                newTPO.append(x[1])
+                newTPO.append(x[6])
+                if x[3] == 'A':
+                   newTPO.append(0)
+                elif x[3] == 'B':
+                   newTPO.append(1)
+                else:
+                   newTPO.append(2)
+                newTPO.append(x[4])
+            finalTpo.append(newTPO)
+            newTPO = []
+            #print(i)
+            #break
+            
+        max_length = max(len(inner_list) for inner_list in finalTpo)
+        for inner_list in finalTpo:
+            while len(inner_list) < max_length:
+                inner_list.append(0)
         
-    max_length = max(len(inner_list) for inner_list in finalTpo)
-    for inner_list in finalTpo:
-        while len(inner_list) < max_length:
-            inner_list.append(0)
-    
-    # Determine the number of columns
-    max_columns = max(len(row) for row in finalTpo)
-    # Generate column names
-    column_names = [f"TopOrders_{i}" for i in range(max_columns)]
-    # Create a DataFrame
-    df1 = pd.DataFrame(finalTpo, columns=column_names)
-    df= pd.concat([df, df1],  axis = 1)
-    #---------------------------------------------------------------
-    finalClust = []
-    newClust = []
-    for i in range(len(clusterList)):
-        for c in sorted(clusterList[i], key=len, reverse=True):
-            newClust.append(c[0])
-            newClust.append(c[len(c)-1])
-            newClust.append(len(c))
-            
-            bidCount = 0
-            askCount = 0
-            midCount = 0
-            for tp in tpo[i]:
-                if c[len(c)-1] <= tp[0] <= c[0] :
-                    if tp[3] == 'B':
-                        bidCount+= tp[1]
-                    elif tp[3] == 'A':
-                        askCount+= tp[1]
-                    elif tp[3] == 'N':
-                        midCount+= tp[1]
-                        
-            newClust.append(bidCount)
-            newClust.append(askCount)
-            #newClust.append(midCount)
-            newClust.append(askCount+bidCount+midCount)
-            newClust.append(bidCount/ (bidCount+askCount+midCount+1))
-            newClust.append(askCount/ (bidCount+askCount+midCount+1))
-            
-        finalClust.append(newClust)
+        # Determine the number of columns
+        max_columns = max(len(row) for row in finalTpo)
+        # Generate column names
+        column_names = [f"TopOrders_{i}" for i in range(max_columns)]
+        # Create a DataFrame
+        df1 = pd.DataFrame(finalTpo, columns=column_names)
+        df= pd.concat([df, df1],  axis = 1)
+        #---------------------------------------------------------------
+        finalClust = []
         newClust = []
-        
-    max_length = max(len(inner_list) for inner_list in finalClust)
-    
-    # Pad each inner list with zeros until it reaches the maximum length
-    for inner_list in finalClust:
-        while len(inner_list) < max_length:
-            inner_list.append(0)
+        for i in range(len(clusterList)):
+            for c in sorted(clusterList[i], key=len, reverse=True):
+                newClust.append(c[0])
+                newClust.append(c[len(c)-1])
+                newClust.append(len(c))
+                
+                bidCount = 0
+                askCount = 0
+                midCount = 0
+                for tp in tpo[i]:
+                    if c[len(c)-1] <= tp[0] <= c[0] :
+                        if tp[3] == 'B':
+                            bidCount+= tp[1]
+                        elif tp[3] == 'A':
+                            askCount+= tp[1]
+                        elif tp[3] == 'N':
+                            midCount+= tp[1]
+                            
+                newClust.append(bidCount)
+                newClust.append(askCount)
+                #newClust.append(midCount)
+                newClust.append(askCount+bidCount+midCount)
+                newClust.append(bidCount/ (bidCount+askCount+midCount+1))
+                newClust.append(askCount/ (bidCount+askCount+midCount+1))
+                
+            finalClust.append(newClust)
+            newClust = []
             
-    
-    column_names = [f"Cluster{i}" for i in range(max_length)]
-    # Create a DataFrame
-    df1 = pd.DataFrame(finalClust, columns=column_names)
-    df= pd.concat([df, df1],  axis = 1)
-    #---------------------------------------------------------------
-    finalvp = []
-    newvp = []
-    for i in vplist:
-        for v in i:
-            newvp.append(v[0])
-            newvp.append(v[1])
-            newvp.append(v[2])
-            newvp.append(v[3])
-            newvp.append(v[4])
-        finalvp.append(newvp)
+        max_length = max(len(inner_list) for inner_list in finalClust)
+        
+        # Pad each inner list with zeros until it reaches the maximum length
+        for inner_list in finalClust:
+            while len(inner_list) < max_length:
+                inner_list.append(0)
+                
+        
+        column_names = [f"Cluster{i}" for i in range(max_length)]
+        # Create a DataFrame
+        df1 = pd.DataFrame(finalClust, columns=column_names)
+        df= pd.concat([df, df1],  axis = 1)
+        #---------------------------------------------------------------
+        finalvp = []
         newvp = []
-        
-        
-    max_length = max(len(inner_list) for inner_list in finalvp)
-    
-    # Pad each inner list with zeros until it reaches the maximum length
-    for inner_list in finalvp:
-        while len(inner_list) < max_length:
-            inner_list.append(0)
-    
-    column_names = [f"VolPro{i}" for i in range(max_length)]
-    # Create a DataFrame
-    df1 = pd.DataFrame(finalvp, columns=column_names)
-    df= pd.concat([df, df1],  axis = 1)
-    
-    
-    #---------------------------------------------------------------
-    fbuyss = []
-    fsellss = []
-    
-    for indx in range(len(df['indes'])):
+        for i in vplist:
+            for v in i:
+                newvp.append(v[0])
+                newvp.append(v[1])
+                newvp.append(v[2])
+                newvp.append(v[3])
+                newvp.append(v[4])
+            finalvp.append(newvp)
+            newvp = []
             
-        buys = [i for i in df['buyCount'].iloc[:indx+1]]
-        sells = [i for i in df['sellCount'].iloc[:indx+1]]
-        
-        
-        fbuyss.append(sum(buys))
-        fsellss.append(sum(sells))
-    
-    df1 = pd.DataFrame([[fbuyss[i],fsellss[i]] for i in range(len(fbuyss))], columns=['buyCountCum', 'sellCountCum'])
-    df= pd.concat([df, df1],  axis = 1)
-    #-----------------------------------------------------------------------------------------------------------
-    fbuyss = []
-    fsellss = []
-    
-    for indx in range(len(df['indes'])):
             
-        buys = [i for i in df['buyCount'].iloc[:indx+1]]
-        sells = [i for i in df['sellCount'].iloc[:indx+1]]
+        max_length = max(len(inner_list) for inner_list in finalvp)
+        
+        # Pad each inner list with zeros until it reaches the maximum length
+        for inner_list in finalvp:
+            while len(inner_list) < max_length:
+                inner_list.append(0)
+        
+        column_names = [f"VolPro{i}" for i in range(max_length)]
+        # Create a DataFrame
+        df1 = pd.DataFrame(finalvp, columns=column_names)
+        df= pd.concat([df, df1],  axis = 1)
         
         
-            
-        newBuys = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] > 0]
-        newSells = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] < 0]
+        #---------------------------------------------------------------
+        fbuyss = []
+        fsellss = []
         
-        buySum = sum(newBuys)
-        sellSum = sum(newSells)
-        
-        fbuyss.append(buySum)
-        fsellss.append(sellSum)
-    
-    df1 = pd.DataFrame([[fbuyss[i],fsellss[i]] for i in range(len(fbuyss))], columns=['buyDiffSum', 'sellDiffSum'])
-    df= pd.concat([df, df1],  axis = 1)
-    
-    
-    
-    #--------------------------------------------------------------------------------------------------------------
-    localMin = []
-    localMax = []
-    for sf in range(len(df)):
-        localMin.append([df['low'][i] for i in argrelextrema(df[:sf+1].low.values, np.less_equal, order=18)[0]])
-        localMax.append([df['high'][i] for i in argrelextrema(df[:sf+1].high.values, np.greater_equal, order=18)[0]])
-
-
-    max_length = max(len(inner_list) for inner_list in localMin)
-    
-    for inner_list in localMin:
-        while len(inner_list) < max_length:
-            inner_list.append(0)
-            
-    column_names = [f"localMin{i}" for i in range(max_length)]
-    # Create a DataFrame
-    df1 = pd.DataFrame(localMin, columns=column_names)
-    df= pd.concat([df, df1],  axis = 1)
-    
-    #prevDf = pd.read_csv(stkName+'Data-4.csv')
-    blob = Blob('Daily'+stkName, bucket)
-    buffer = io.BytesIO()
-    blob.download_to_file(buffer)
-    buffer.seek(0)
-
-    prevDf = pd.read_csv(buffer)
-    
-    prevDf_min_cols = [col for col in prevDf.columns if col.startswith('localMin')]
-    cuurtmincols = [col for col in df.columns if col.startswith('localMin')]
-    
-    if len(prevDf_min_cols) > len(cuurtmincols):
-        for cl in prevDf_min_cols:
-            if cl not in cuurtmincols:
-                df[cl] = 0
-                cuurtmincols.append(cl)
+        for indx in range(len(df['indes'])):
                 
-    elif len(cuurtmincols) > len(prevDf_min_cols):
-        for cl in cuurtmincols:
-            if cl not in prevDf_min_cols:
-                prevDf[cl] = 0
-                prevDf_min_cols.append(cl)
-
-    
-    #---------------------------------------------------------------
-    max_length = max(len(inner_list) for inner_list in localMax)
-    
-    for inner_list in localMax:
-        while len(inner_list) < max_length:
-            inner_list.append(0)
+            buys = [i for i in df['buyCount'].iloc[:indx+1]]
+            sells = [i for i in df['sellCount'].iloc[:indx+1]]
             
-    column_names = [f"localMax{i}" for i in range(max_length)]
-    # Create a DataFrame
-    df1 = pd.DataFrame(localMax, columns=column_names)
-    df= pd.concat([df, df1],  axis = 1)
-    
-    
-    prevDf_min_cols = [col for col in prevDf.columns if col.startswith('localMax')]
-    cuurtmincols = [col for col in df.columns if col.startswith('localMax')]
-    
-    if len(prevDf_min_cols) > len(cuurtmincols):
-        for cl in prevDf_min_cols:
-            if cl not in cuurtmincols:
-                df[cl] = 0
-                cuurtmincols.append(cl)
+            
+            fbuyss.append(sum(buys))
+            fsellss.append(sum(sells))
+        
+        df1 = pd.DataFrame([[fbuyss[i],fsellss[i]] for i in range(len(fbuyss))], columns=['buyCountCum', 'sellCountCum'])
+        df= pd.concat([df, df1],  axis = 1)
+        #-----------------------------------------------------------------------------------------------------------
+        fbuyss = []
+        fsellss = []
+        
+        for indx in range(len(df['indes'])):
                 
-    elif len(cuurtmincols) > len(prevDf_min_cols):
-        for cl in cuurtmincols:
-            if cl not in prevDf_min_cols:
-                prevDf[cl] = 0
-                prevDf_min_cols.append(cl)
-               
-    #---------------------------------------------------------------
-    
-    lfbuySum = []
-    lfsellSum = []
-    
-    for indx in range(len(df['indes'])):
-        if indx - 4 < 0:
-            lfbuySum.append(sum(df['buyCount'][:indx+1]))
-            lfsellSum.append(sum(df['sellCount'][:indx+1]))
-        elif indx - 4 >= 0:
-            lfbuySum.append(sum(df['buyCount'][indx-4:indx+1]))
-            lfsellSum.append(sum(df['sellCount'][indx-4:indx+1]))
+            buys = [i for i in df['buyCount'].iloc[:indx+1]]
+            sells = [i for i in df['sellCount'].iloc[:indx+1]]
             
-    df1 = pd.DataFrame(lfbuySum, columns=['buyCount5C'])
-    df = pd.concat([df, df1],  axis = 1)
-    
-    df1 = pd.DataFrame(lfsellSum, columns=['sellCount5C'])
-    df = pd.concat([df, df1],  axis = 1)
             
-    
-    #---------------------------------------------------------------
-    
-    finall = []
-    for i in tpo:
-        tobuyss =  sum([t[1] for t in i if t[3] == 'B'])
-        tosellss = sum([t[1] for t in i if t[3] == 'A'])
-        
-        try:
-            finall.append([tobuyss,tosellss, tobuyss/(tobuyss+tosellss), tosellss/(tobuyss+tosellss)])
-        except(ZeroDivisionError):
-            finall.append([0,0, 0, 0])
-        
-    df1 = pd.DataFrame(finall, columns=['topOrderBuy', 'topOrderSell', 'topOrderBuyPercent', 'topOrderSellPercent'])
-    df = pd.concat([df, df1],  axis = 1)
-    
-    print(stkName)
-    #df.to_csv(stkName+'Data-3.csv', index=False)
-    #prevDf = pd.read_csv(stkName+'Data-2.csv')
-    
-    if prevDf.shape[1] > df.shape[1]:
-        pattern = 'Cluster'
-        matching_columns = [col for col in df.columns if col.startswith(pattern)]
-        last_matching_column = matching_columns[-1]
-        colCount = int(last_matching_column.replace('Cluster',''))+1
-        while prevDf.shape[1] > df.shape[1]:
-            df['Cluster'+str(colCount)] = 0
-            colCount+=1
+                
+            newBuys = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] > 0]
+            newSells = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] < 0]
             
-        col_cluster_cols = [col for col in df.columns if col.startswith('Cluster')]
-        col_vp_cols = [col for col in df.columns if col.startswith('VolPro')]
-        
-        # Identify other columns
-        other_cols = [col for col in df.columns if col not in col_cluster_cols + col_vp_cols] 
-        
-        # Rearrange columns
-        new_column_order = other_cols+col_cluster_cols+col_vp_cols
-        
-        # Reorder the DataFrame
-        df = df[new_column_order]
-        combined_df = pd.concat([prevDf, df], ignore_index=True)
-        #combined_df.to_csv(stkName+'Data-4.csv', index=False)  #mode='a',
-        #df.to_csv(stkName+'Data-1.csv',mode='a', index=False) 
-        
-    elif df.shape[1] > prevDf.shape[1]:
-        pattern = 'Cluster'
-        matching_columns = [col for col in prevDf.columns if col.startswith(pattern)]
-        last_matching_column = matching_columns[-1]
-        colCount = int(last_matching_column.replace('Cluster',''))+1
-        while df.shape[1] > prevDf.shape[1]:
-            prevDf['Cluster'+str(colCount)] = 0
-            colCount+=1
+            buySum = sum(newBuys)
+            sellSum = sum(newSells)
             
-        col_cluster_cols = [col for col in prevDf.columns if col.startswith('Cluster')]
-        col_vp_cols = [col for col in prevDf.columns if col.startswith('VolPro')]
+            fbuyss.append(buySum)
+            fsellss.append(sellSum)
         
-        other_cols = [col for col in prevDf.columns if col not in col_cluster_cols + col_vp_cols]
+        df1 = pd.DataFrame([[fbuyss[i],fsellss[i]] for i in range(len(fbuyss))], columns=['buyDiffSum', 'sellDiffSum'])
+        df= pd.concat([df, df1],  axis = 1)
         
-        # Rearrange columns
-        new_column_order = other_cols+col_cluster_cols+col_vp_cols
         
-        # Reorder the DataFrame
-        prevDf = prevDf[new_column_order]
         
-        combined_df = pd.concat([prevDf, df], ignore_index=True)
-        #combined_df.to_csv(stkName+'Data-4.csv', index=False) 
+        #--------------------------------------------------------------------------------------------------------------
+        localMin = []
+        localMax = []
+        for sf in range(len(df)):
+            localMin.append([df['low'][i] for i in argrelextrema(df[:sf+1].low.values, np.less_equal, order=18)[0]])
+            localMax.append([df['high'][i] for i in argrelextrema(df[:sf+1].high.values, np.greater_equal, order=18)[0]])
+    
+    
+        max_length = max(len(inner_list) for inner_list in localMin)
         
-        # Display the DataFrame with the new column order
-        #print(df.head())
-    elif df.shape[1] == prevDf.shape[1]:
+        for inner_list in localMin:
+            while len(inner_list) < max_length:
+                inner_list.append(0)
+                
+        column_names = [f"localMin{i}" for i in range(max_length)]
+        # Create a DataFrame
+        df1 = pd.DataFrame(localMin, columns=column_names)
+        df= pd.concat([df, df1],  axis = 1)
         
-        combined_df = pd.concat([prevDf, df], ignore_index=True)
-        #combined_df.to_csv(stkName+'Data-4.csv', index=False) 
+        #prevDf = pd.read_csv(stkName+'Data-4.csv')
+        blob = Blob('Daily'+stkName, bucket)
+        buffer = io.BytesIO()
+        blob.download_to_file(buffer)
+        buffer.seek(0)
+    
+        prevDf = pd.read_csv(buffer)
+        
+        prevDf_min_cols = [col for col in prevDf.columns if col.startswith('localMin')]
+        cuurtmincols = [col for col in df.columns if col.startswith('localMin')]
+        
+        if len(prevDf_min_cols) > len(cuurtmincols):
+            for cl in prevDf_min_cols:
+                if cl not in cuurtmincols:
+                    df[cl] = 0
+                    cuurtmincols.append(cl)
+                    
+        elif len(cuurtmincols) > len(prevDf_min_cols):
+            for cl in cuurtmincols:
+                if cl not in prevDf_min_cols:
+                    prevDf[cl] = 0
+                    prevDf_min_cols.append(cl)
+    
+        
+        #---------------------------------------------------------------
+        max_length = max(len(inner_list) for inner_list in localMax)
+        
+        for inner_list in localMax:
+            while len(inner_list) < max_length:
+                inner_list.append(0)
+                
+        column_names = [f"localMax{i}" for i in range(max_length)]
+        # Create a DataFrame
+        df1 = pd.DataFrame(localMax, columns=column_names)
+        df= pd.concat([df, df1],  axis = 1)
+        
+        
+        prevDf_min_cols = [col for col in prevDf.columns if col.startswith('localMax')]
+        cuurtmincols = [col for col in df.columns if col.startswith('localMax')]
+        
+        if len(prevDf_min_cols) > len(cuurtmincols):
+            for cl in prevDf_min_cols:
+                if cl not in cuurtmincols:
+                    df[cl] = 0
+                    cuurtmincols.append(cl)
+                    
+        elif len(cuurtmincols) > len(prevDf_min_cols):
+            for cl in cuurtmincols:
+                if cl not in prevDf_min_cols:
+                    prevDf[cl] = 0
+                    prevDf_min_cols.append(cl)
+                   
+        #---------------------------------------------------------------
+        
+        lfbuySum = []
+        lfsellSum = []
+        
+        for indx in range(len(df['indes'])):
+            if indx - 4 < 0:
+                lfbuySum.append(sum(df['buyCount'][:indx+1]))
+                lfsellSum.append(sum(df['sellCount'][:indx+1]))
+            elif indx - 4 >= 0:
+                lfbuySum.append(sum(df['buyCount'][indx-4:indx+1]))
+                lfsellSum.append(sum(df['sellCount'][indx-4:indx+1]))
+                
+        df1 = pd.DataFrame(lfbuySum, columns=['buyCount5C'])
+        df = pd.concat([df, df1],  axis = 1)
+        
+        df1 = pd.DataFrame(lfsellSum, columns=['sellCount5C'])
+        df = pd.concat([df, df1],  axis = 1)
+                
+        
+        #---------------------------------------------------------------
+        
+        finall = []
+        for i in tpo:
+            tobuyss =  sum([t[1] for t in i if t[3] == 'B'])
+            tosellss = sum([t[1] for t in i if t[3] == 'A'])
+            
+            try:
+                finall.append([tobuyss,tosellss, tobuyss/(tobuyss+tosellss), tosellss/(tobuyss+tosellss)])
+            except(ZeroDivisionError):
+                finall.append([0,0, 0, 0])
+            
+        df1 = pd.DataFrame(finall, columns=['topOrderBuy', 'topOrderSell', 'topOrderBuyPercent', 'topOrderSellPercent'])
+        df = pd.concat([df, df1],  axis = 1)
+        
+        print(stkName)
+        stored_data['dataFrame'] = stored_data['dataFrame'].iloc[:-1]
+        stored_data['dataFrame'] = pd.concat([stored_data['dataFrame'], df], ignore_index=True)
+        stored_data['dataFrame']['DailyPOCAVG']= stored_data['dataFrame']['POC'].cumsum() / (stored_data['dataFrame'].index + 1)
+        df = stored_data['dataFrame']
+        
+        #df.to_csv(stkName+'Data-3.csv', index=False)
+        #prevDf = pd.read_csv(stkName+'Data-2.csv')
+        
+        if prevDf.shape[1] > df.shape[1]:
+            pattern = 'Cluster'
+            matching_columns = [col for col in df.columns if col.startswith(pattern)]
+            last_matching_column = matching_columns[-1]
+            colCount = int(last_matching_column.replace('Cluster',''))+1
+            while prevDf.shape[1] > df.shape[1]:
+                df['Cluster'+str(colCount)] = 0
+                colCount+=1
+                
+            col_cluster_cols = [col for col in df.columns if col.startswith('Cluster')]
+            col_vp_cols = [col for col in df.columns if col.startswith('VolPro')]
+            
+            # Identify other columns
+            other_cols = [col for col in df.columns if col not in col_cluster_cols + col_vp_cols] 
+            
+            # Rearrange columns
+            new_column_order = other_cols+col_cluster_cols+col_vp_cols
+            
+            # Reorder the DataFrame
+            df = df[new_column_order]
+            combined_df = pd.concat([prevDf, df], ignore_index=True)
+            #combined_df.to_csv(stkName+'Data-4.csv', index=False)  #mode='a',
+            #df.to_csv(stkName+'Data-1.csv',mode='a', index=False) 
+            
+        elif df.shape[1] > prevDf.shape[1]:
+            pattern = 'Cluster'
+            matching_columns = [col for col in prevDf.columns if col.startswith(pattern)]
+            last_matching_column = matching_columns[-1]
+            colCount = int(last_matching_column.replace('Cluster',''))+1
+            while df.shape[1] > prevDf.shape[1]:
+                prevDf['Cluster'+str(colCount)] = 0
+                colCount+=1
+                
+            col_cluster_cols = [col for col in prevDf.columns if col.startswith('Cluster')]
+            col_vp_cols = [col for col in prevDf.columns if col.startswith('VolPro')]
+            
+            other_cols = [col for col in prevDf.columns if col not in col_cluster_cols + col_vp_cols]
+            
+            # Rearrange columns
+            new_column_order = other_cols+col_cluster_cols+col_vp_cols
+            
+            # Reorder the DataFrame
+            prevDf = prevDf[new_column_order]
+            
+            combined_df = pd.concat([prevDf, df], ignore_index=True)
+            #combined_df.to_csv(stkName+'Data-4.csv', index=False) 
+            
+            # Display the DataFrame with the new column order
+            #print(df.head())
+        elif df.shape[1] == prevDf.shape[1]:
+            
+            combined_df = pd.concat([prevDf, df], ignore_index=True)
+            #combined_df.to_csv(stkName+'Data-4.csv', index=False) 
+            
+        
+        
+        
 
+    
+    if stored_data is None:
+        print('NewStore')
+        epochTimes = [i[2] for i in AllTrades]
+        vplist = []
+        valist = []
+        tpo = []
+        clusterList = []
+        
+        for i in range(len(df['time'])-1):
+            hs = historV2(df[:i+1],50,{},AllTrades[:bisect.bisect_left(epochTimes, int(df['timestamp'][i+1]))],[])
+
+        
+            vplist.append([[xx[0], xx[3], xx[1], xx[7], xx[8]] for xx in hs[0]])
+            valist.append(valueAreaV1(hs[0]))
+            
+            mTrade = [i for i in AllTrades[:bisect.bisect_left(epochTimes, int(df['timestamp'][i+1]))]]  #AllTrades[:(len(tradeTimes) - 1 - tradeTimes.index(df['time'][i+1])) +1]
+            
+             
+            mTrade = sorted(mTrade, key=lambda d: d[1], reverse=True)
+            
+            for tdd in range(len(mTrade)):
+                mTrade[tdd][4] = tdd
+                
+            #[mTrade[i].insert(4,i) for i in range(len(mTrade))] 
+            
+            newwT = []
+            for x in mTrade[:100]:
+                newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], df['timestamp'].searchsorted(x[2])-1])
+                
+            
+                
+            tpo.append([[i[0], i[1], i[2], i[3], i[4], i[6], i[7]] for i in newwT[:100]])
+            
+            data = [i[0] for i in newwT[:100]]
+            data.sort(reverse=True)
+            differences = [abs(data[i+1] - data[i]) for i in range(len(data) - 1)]
+            try:
+                average_difference = sum(differences) / len(differences)
+                cdata = find_clusters(data, average_difference)
+                clust = [i for i in cdata if len(i) >= 5]
+                clusterList.append(clust)
+            except(ZeroDivisionError):
+                clusterList.append([])
+            #break
+        else:
+            hs = historV2(df,50,{},AllTrades,[])
+            vplist.append([[xx[0], xx[3], xx[1], xx[7], xx[8]] for xx in hs[0]])
+            valist.append(valueAreaV1(hs[0]))
+            
+            mTrade = [i for i in AllTrades]
+            
+             
+            mTrade = sorted(mTrade, key=lambda d: d[1], reverse=True)
+            
+            for tdd in range(len(mTrade)):
+                mTrade[tdd][4] = tdd
+                
+            #[mTrade[i].insert(4,i) for i in range(len(mTrade))] 
+            
+            newwT = []
+            for x in mTrade[:100]:
+                newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], df['timestamp'].searchsorted(x[2])-1])
+                
+            
+                
+            tpo.append([[i[0], i[1], i[2], i[3], i[4], i[6], i[7]] for i in newwT[:100]])
+            
+            data = [i[0] for i in newwT[:100]] #150
+            data.sort(reverse=True)
+            differences = [abs(data[i+1] - data[i]) for i in range(len(data) - 1)]
+            average_difference = sum(differences) / len(differences)
+            cdata = find_clusters(data, average_difference)
+            clust = [i for i in cdata if len(i) >= 5] #6
+            clusterList.append(clust)
+                
+        '''
+        imbalance = []
+        for i in range(len(df['buyDecimal'])):
+            if df['buyDecimal'][i] >= 0.58:
+                mn = df['buyCount'].loc[:i].mean()
+                if df['buyCount'][i] >= mn:
+                    imbalance.append(1)
+                else:
+                    imbalance.append(0)
+            elif df['sellDecimal'][i] >= 0.58:
+                mn = df['sellCount'].loc[:i].mean()
+                if df['sellCount'][i] >= mn:
+                    imbalance.append(2)
+                else:
+                    imbalance.append(0)
+            else:
+                imbalance.append(0)
+                
+        df['imbalance'] = pd.Series([i for i in imbalance])
+        '''
+        
+        df['LowVA'] = pd.Series([i[0] for i in valist])
+        df['HighVA'] = pd.Series([i[1] for i in valist])
+        df['POC']  = pd.Series([i[2] for i in valist])
+        df['indes'] = pd.Series([i for i in range(0,len(df))])
+        df['DailyPOCAVG']= df['POC'].cumsum() / (df.index + 1)
+        #df['DailyLowVAAVG']= df['LowVA'].cumsum() / (df.index + 1)
+        #df['DailyHighVAAVG']= df['HighVA'].cumsum() / (df.index + 1)
+        #---------------------------------------------------------------    
+        finalTpo = []
+        newTPO = []
+        for i in tpo:
+            for x in i:
+                newTPO.append(x[0])
+                newTPO.append(x[1])
+                newTPO.append(x[6])
+                if x[3] == 'A':
+                   newTPO.append(0)
+                elif x[3] == 'B':
+                   newTPO.append(1)
+                else:
+                   newTPO.append(2)
+                newTPO.append(x[4])
+            finalTpo.append(newTPO)
+            newTPO = []
+            #print(i)
+            #break
+            
+        max_length = max(len(inner_list) for inner_list in finalTpo)
+        for inner_list in finalTpo:
+            while len(inner_list) < max_length:
+                inner_list.append(0)
+        
+        # Determine the number of columns
+        max_columns = max(len(row) for row in finalTpo)
+        # Generate column names
+        column_names = [f"TopOrders_{i}" for i in range(max_columns)]
+        # Create a DataFrame
+        df1 = pd.DataFrame(finalTpo, columns=column_names)
+        df= pd.concat([df, df1],  axis = 1)
+        #---------------------------------------------------------------
+        finalClust = []
+        newClust = []
+        for i in range(len(clusterList)):
+            for c in sorted(clusterList[i], key=len, reverse=True):
+                newClust.append(c[0])
+                newClust.append(c[len(c)-1])
+                newClust.append(len(c))
+                
+                bidCount = 0
+                askCount = 0
+                midCount = 0
+                for tp in tpo[i]:
+                    if c[len(c)-1] <= tp[0] <= c[0] :
+                        if tp[3] == 'B':
+                            bidCount+= tp[1]
+                        elif tp[3] == 'A':
+                            askCount+= tp[1]
+                        elif tp[3] == 'N':
+                            midCount+= tp[1]
+                            
+                newClust.append(bidCount)
+                newClust.append(askCount)
+                #newClust.append(midCount)
+                newClust.append(askCount+bidCount+midCount)
+                newClust.append(bidCount/ (bidCount+askCount+midCount+1))
+                newClust.append(askCount/ (bidCount+askCount+midCount+1))
+                
+            finalClust.append(newClust)
+            newClust = []
+            
+        max_length = max(len(inner_list) for inner_list in finalClust)
+        
+        # Pad each inner list with zeros until it reaches the maximum length
+        for inner_list in finalClust:
+            while len(inner_list) < max_length:
+                inner_list.append(0)
+                
+        
+        column_names = [f"Cluster{i}" for i in range(max_length)]
+        # Create a DataFrame
+        df1 = pd.DataFrame(finalClust, columns=column_names)
+        df= pd.concat([df, df1],  axis = 1)
+        #---------------------------------------------------------------
+        finalvp = []
+        newvp = []
+        for i in vplist:
+            for v in i:
+                newvp.append(v[0])
+                newvp.append(v[1])
+                newvp.append(v[2])
+                newvp.append(v[3])
+                newvp.append(v[4])
+            finalvp.append(newvp)
+            newvp = []
+            
+            
+        max_length = max(len(inner_list) for inner_list in finalvp)
+        
+        # Pad each inner list with zeros until it reaches the maximum length
+        for inner_list in finalvp:
+            while len(inner_list) < max_length:
+                inner_list.append(0)
+        
+        column_names = [f"VolPro{i}" for i in range(max_length)]
+        # Create a DataFrame
+        df1 = pd.DataFrame(finalvp, columns=column_names)
+        df= pd.concat([df, df1],  axis = 1)
+        
+        
+        #---------------------------------------------------------------
+        fbuyss = []
+        fsellss = []
+        
+        for indx in range(len(df['indes'])):
+                
+            buys = [i for i in df['buyCount'].iloc[:indx+1]]
+            sells = [i for i in df['sellCount'].iloc[:indx+1]]
+            
+            
+            fbuyss.append(sum(buys))
+            fsellss.append(sum(sells))
+        
+        df1 = pd.DataFrame([[fbuyss[i],fsellss[i]] for i in range(len(fbuyss))], columns=['buyCountCum', 'sellCountCum'])
+        df= pd.concat([df, df1],  axis = 1)
+        #-----------------------------------------------------------------------------------------------------------
+        fbuyss = []
+        fsellss = []
+        
+        for indx in range(len(df['indes'])):
+                
+            buys = [i for i in df['buyCount'].iloc[:indx+1]]
+            sells = [i for i in df['sellCount'].iloc[:indx+1]]
+            
+            
+                
+            newBuys = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] > 0]
+            newSells = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] < 0]
+            
+            buySum = sum(newBuys)
+            sellSum = sum(newSells)
+            
+            fbuyss.append(buySum)
+            fsellss.append(sellSum)
+        
+        df1 = pd.DataFrame([[fbuyss[i],fsellss[i]] for i in range(len(fbuyss))], columns=['buyDiffSum', 'sellDiffSum'])
+        df= pd.concat([df, df1],  axis = 1)
+        
+        
+        
+        #--------------------------------------------------------------------------------------------------------------
+        localMin = []
+        localMax = []
+        for sf in range(len(df)):
+            localMin.append([df['low'][i] for i in argrelextrema(df[:sf+1].low.values, np.less_equal, order=18)[0]])
+            localMax.append([df['high'][i] for i in argrelextrema(df[:sf+1].high.values, np.greater_equal, order=18)[0]])
+    
+    
+        max_length = max(len(inner_list) for inner_list in localMin)
+        
+        for inner_list in localMin:
+            while len(inner_list) < max_length:
+                inner_list.append(0)
+                
+        column_names = [f"localMin{i}" for i in range(max_length)]
+        # Create a DataFrame
+        df1 = pd.DataFrame(localMin, columns=column_names)
+        df= pd.concat([df, df1],  axis = 1)
+        
+        #prevDf = pd.read_csv(stkName+'Data-4.csv')
+        blob = Blob('Daily'+stkName, bucket)
+        buffer = io.BytesIO()
+        blob.download_to_file(buffer)
+        buffer.seek(0)
+    
+        prevDf = pd.read_csv(buffer)
+        
+        prevDf_min_cols = [col for col in prevDf.columns if col.startswith('localMin')]
+        cuurtmincols = [col for col in df.columns if col.startswith('localMin')]
+        
+        if len(prevDf_min_cols) > len(cuurtmincols):
+            for cl in prevDf_min_cols:
+                if cl not in cuurtmincols:
+                    df[cl] = 0
+                    cuurtmincols.append(cl)
+                    
+        elif len(cuurtmincols) > len(prevDf_min_cols):
+            for cl in cuurtmincols:
+                if cl not in prevDf_min_cols:
+                    prevDf[cl] = 0
+                    prevDf_min_cols.append(cl)
+    
+        
+        #---------------------------------------------------------------
+        max_length = max(len(inner_list) for inner_list in localMax)
+        
+        for inner_list in localMax:
+            while len(inner_list) < max_length:
+                inner_list.append(0)
+                
+        column_names = [f"localMax{i}" for i in range(max_length)]
+        # Create a DataFrame
+        df1 = pd.DataFrame(localMax, columns=column_names)
+        df= pd.concat([df, df1],  axis = 1)
+        
+        
+        prevDf_min_cols = [col for col in prevDf.columns if col.startswith('localMax')]
+        cuurtmincols = [col for col in df.columns if col.startswith('localMax')]
+        
+        if len(prevDf_min_cols) > len(cuurtmincols):
+            for cl in prevDf_min_cols:
+                if cl not in cuurtmincols:
+                    df[cl] = 0
+                    cuurtmincols.append(cl)
+                    
+        elif len(cuurtmincols) > len(prevDf_min_cols):
+            for cl in cuurtmincols:
+                if cl not in prevDf_min_cols:
+                    prevDf[cl] = 0
+                    prevDf_min_cols.append(cl)
+                   
+        #---------------------------------------------------------------
+        
+        lfbuySum = []
+        lfsellSum = []
+        
+        for indx in range(len(df['indes'])):
+            if indx - 4 < 0:
+                lfbuySum.append(sum(df['buyCount'][:indx+1]))
+                lfsellSum.append(sum(df['sellCount'][:indx+1]))
+            elif indx - 4 >= 0:
+                lfbuySum.append(sum(df['buyCount'][indx-4:indx+1]))
+                lfsellSum.append(sum(df['sellCount'][indx-4:indx+1]))
+                
+        df1 = pd.DataFrame(lfbuySum, columns=['buyCount5C'])
+        df = pd.concat([df, df1],  axis = 1)
+        
+        df1 = pd.DataFrame(lfsellSum, columns=['sellCount5C'])
+        df = pd.concat([df, df1],  axis = 1)
+                
+        
+        #---------------------------------------------------------------
+        
+        finall = []
+        for i in tpo:
+            tobuyss =  sum([t[1] for t in i if t[3] == 'B'])
+            tosellss = sum([t[1] for t in i if t[3] == 'A'])
+            
+            try:
+                finall.append([tobuyss,tosellss, tobuyss/(tobuyss+tosellss), tosellss/(tobuyss+tosellss)])
+            except(ZeroDivisionError):
+                finall.append([0,0, 0, 0])
+            
+        df1 = pd.DataFrame(finall, columns=['topOrderBuy', 'topOrderSell', 'topOrderBuyPercent', 'topOrderSellPercent'])
+        df = pd.concat([df, df1],  axis = 1)
+        
+        print(stkName)
+        #df.to_csv(stkName+'Data-3.csv', index=False)
+        #prevDf = pd.read_csv(stkName+'Data-2.csv')
+        
+        if prevDf.shape[1] > df.shape[1]:
+            pattern = 'Cluster'
+            matching_columns = [col for col in df.columns if col.startswith(pattern)]
+            last_matching_column = matching_columns[-1]
+            colCount = int(last_matching_column.replace('Cluster',''))+1
+            while prevDf.shape[1] > df.shape[1]:
+                df['Cluster'+str(colCount)] = 0
+                colCount+=1
+                
+            col_cluster_cols = [col for col in df.columns if col.startswith('Cluster')]
+            col_vp_cols = [col for col in df.columns if col.startswith('VolPro')]
+            
+            # Identify other columns
+            other_cols = [col for col in df.columns if col not in col_cluster_cols + col_vp_cols] 
+            
+            # Rearrange columns
+            new_column_order = other_cols+col_cluster_cols+col_vp_cols
+            
+            # Reorder the DataFrame
+            df = df[new_column_order]
+            combined_df = pd.concat([prevDf, df], ignore_index=True)
+            #combined_df.to_csv(stkName+'Data-4.csv', index=False)  #mode='a',
+            #df.to_csv(stkName+'Data-1.csv',mode='a', index=False) 
+            
+        elif df.shape[1] > prevDf.shape[1]:
+            pattern = 'Cluster'
+            matching_columns = [col for col in prevDf.columns if col.startswith(pattern)]
+            last_matching_column = matching_columns[-1]
+            colCount = int(last_matching_column.replace('Cluster',''))+1
+            while df.shape[1] > prevDf.shape[1]:
+                prevDf['Cluster'+str(colCount)] = 0
+                colCount+=1
+                
+            col_cluster_cols = [col for col in prevDf.columns if col.startswith('Cluster')]
+            col_vp_cols = [col for col in prevDf.columns if col.startswith('VolPro')]
+            
+            other_cols = [col for col in prevDf.columns if col not in col_cluster_cols + col_vp_cols]
+            
+            # Rearrange columns
+            new_column_order = other_cols+col_cluster_cols+col_vp_cols
+            
+            # Reorder the DataFrame
+            prevDf = prevDf[new_column_order]
+            
+            combined_df = pd.concat([prevDf, df], ignore_index=True)
+            #combined_df.to_csv(stkName+'Data-4.csv', index=False) 
+            
+            # Display the DataFrame with the new column order
+            #print(df.head())
+        elif df.shape[1] == prevDf.shape[1]:
+            
+            combined_df = pd.concat([prevDf, df], ignore_index=True)
+            #combined_df.to_csv(stkName+'Data-4.csv', index=False) 
+    
+        stored_data = {'dataFrame': df}
+     
+    
+    previous_stkName = sname
+    
     vwapCum(combined_df)
-    PPPCum(combined_df)   
+    PPPCum(combined_df) 
+    combined_df['POCAVGCum'] = combined_df['POC'].cumsum() / (combined_df.index + 1)
     df = combined_df
 
     
@@ -1111,9 +1546,9 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['POC'], mode='lines',name='POC',marker_color='#0000FF'))
     
     
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['100ema'], mode='lines', opacity=0.50, name='100ema',marker_color='rgba(0,0,0)'))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['200ema'], mode='lines', opacity=0.50,name='200ema',marker_color='rgba(0,0,0)'))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['50ema'], mode='lines', opacity=0.50,name='50ema',marker_color='rgba(0,0,0)'))
+    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['100ema'], mode='lines', opacity=0.50, name='100ema',marker_color='rgba(0,0,0)'))
+    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['200ema'], mode='lines', opacity=0.50,name='200ema',marker_color='rgba(0,0,0)'))
+    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['50ema'], mode='lines', opacity=0.50,name='50ema',marker_color='rgba(0,0,0)'))
     '''
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_2'], mode='lines', opacity=0.1, name='UPPERVWAP2', line=dict(color='black')))
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N2'], mode='lines', opacity=0.1, name='LOWERVWAP2', line=dict(color='black')))
@@ -1218,6 +1653,7 @@ def update_graph_live(n_intervals, data):
 
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapCum'], mode='lines', name='vwapCum', line=dict(color='crimson')))
     
+    
     fig.update_xaxes(
         range=[int(len(df) * 0.92), len(df)],
         row=2, col=1
@@ -1242,7 +1678,7 @@ def update_graph_live(n_intervals, data):
     # Show the chart
     #fig.show() 
     
-    return fig
+    return fig, stored_data, previous_stkName
 
 if __name__ == '__main__': 
     app.run_server(debug=False, host='0.0.0.0', port=8080)
