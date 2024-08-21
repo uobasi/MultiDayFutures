@@ -1226,8 +1226,8 @@ def update_graph_live(n_intervals, data):
     # Update y-axis range for the specific subplot
     fig.update_yaxes(
         range=[
-            min([i for i in combined_df['buySellDif'][int(len(df) * 0.92):len(df)]]), 
-            max([i for i in combined_df['buySellDif'][int(len(df) * 0.92):len(df)]])
+            min([i for i in combined_df['buySellDif'][int(len(df) * 0.90):len(df)]]), 
+            max([i for i in combined_df['buySellDif'][int(len(df) * 0.90):len(df)]])
         ],
         row=2, col=1
     )
@@ -1236,8 +1236,8 @@ def update_graph_live(n_intervals, data):
                       showlegend=False,
                       height=750,
                       xaxis_rangeslider_visible=False,
-                      xaxis=dict(range=[int(len(df)*0.92), len(df)]),
-                      yaxis=dict(range=[min([i for i in combined_df['low'][int(len(df)*0.92):len(df)]]), max([i for i in combined_df['high'][int(len(df)*0.92):len(df)]])])) #showlegend=False
+                      xaxis=dict(range=[int(len(df)*0.90), len(df)]),
+                      yaxis=dict(range=[min([i for i in combined_df['low'][int(len(df)*0.90):len(df)]]), max([i for i in combined_df['high'][int(len(df)*0.90):len(df)]])])) #showlegend=False
         
 
     # Show the chart
