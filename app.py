@@ -410,9 +410,8 @@ import plotly.graph_objects as go
 import plotly.io as pio
 pio.renderers.default='browser'
 
-symbolNumList = ['118', '4358', '42012334', '392826', '393','28080', '938', '11232']
+symbolNumList = ['118', '4358', '42012334', '392826', '393','163699', '935', '11232']
 symbolNameList = ['ES', 'NQ', 'YM','CL', 'GC', 'HG', 'NG', 'RTY']
-
 
 gclient = storage.Client(project="stockapp-401615")
 bucket = gclient.get_bucket("stockapp-storage")
