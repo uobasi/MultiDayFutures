@@ -1142,16 +1142,18 @@ def update_graph_live(n_intervals, data):
 
 
     #tst = pd.Series([df['topOrderBuy'][i] - df['topOrderSell'][i] for i in  range(len(df))])
+
+    df['topDiff'] = df['topOrderBuy'] - df['topOrderSell']
     coll = [     'teal' if i > 0
                 else 'crimson' if i < 0
-                else 'gray' for i in df['buySellDif']] #tst
+                else 'gray' for i in df['topDiff']] #tst  df['buySellDif']
     
-    #fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['buySellDif'], marker_color=coll), row=2, col=1) #tst
+    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topDiff'], marker_color=coll), row=3, col=1) #tst
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuyPercent'], marker_color='teal'), row=2, col=1) #tst
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSellPercent'], marker_color='crimson'), row=2, col=1)
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuy'], marker_color='teal'), row=3, col=1) #tst
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSell'], marker_color='crimson'), row=3, col=1)
+    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuy'], marker_color='teal'), row=3, col=1) #tst
+    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSell'], marker_color='crimson'), row=3, col=1)
     '''
     fig.add_trace(
         go.Bar(
@@ -1224,7 +1226,7 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapCum'], mode='lines', name='vwapCum', line=dict(color='crimson')))
     
     fig.update_xaxes(
-        range=[int(len(df) * 0.92), len(df)],
+        range=[int(len(df) * 0.90), len(df)],
         row=2, col=1
     )
     # Update y-axis range for the specific subplot
