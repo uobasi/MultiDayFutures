@@ -1238,6 +1238,14 @@ def update_graph_live(n_intervals, data):
         row=2, col=1
     )
 
+    fig.update_yaxes(
+        range=[
+            min([i for i in combined_df['topDiff'][int(len(df) * 0.90):len(df)]]), 
+            max([i for i in combined_df['topDiff'][int(len(df) * 0.90):len(df)]])
+        ],
+        row=3, col=1
+    )
+
     fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
                       showlegend=False,
                       height=780,
