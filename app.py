@@ -1090,11 +1090,12 @@ def update_graph_live(n_intervals, data):
 
     
     
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, shared_yaxes=True,
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, shared_yaxes=True,
                         specs=[[{}],
+                               [{}],
                                [{}],], #[{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
                          horizontal_spacing=0.00, vertical_spacing=0.00, # subplot_titles=(stkName +' '+ str(datetime.now().time()))' (Sell:'+str(putDec)+' ('+str(round(NumPut,2))+') | '+'Buy:'+str(CallDec)+' ('+str(round(NumCall,2))+') \n '+' (Sell:'+str(thputDec)+' ('+str(round(thNumPut,2))+') | '+'Buy:'+str(thCallDec)+' ('+str(round(thNumCall,2))+') \n '
-                         row_width=[0.2,0.80,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 
+                         row_width=[0.15,0.15,0.70,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 
 
     
     
@@ -1146,9 +1147,9 @@ def update_graph_live(n_intervals, data):
                 else 'gray' for i in df['buySellDif']] #tst
     
     #fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['buySellDif'], marker_color=coll), row=2, col=1) #tst
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuyPercent'], marker_color='green'), row=2, col=1) #tst
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSellPercent'], marker_color='red'), row=2, col=1)
-    '''
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuyPercent'], marker_color='teal'), row=2, col=1) #tst
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSellPercent'], marker_color='crimson'), row=2, col=1)
+
     fig.add_trace(
         go.Bar(
             x=pd.Series([i for i in range(len(df))]),
@@ -1174,7 +1175,7 @@ def update_graph_live(n_intervals, data):
         ),
          row=3, col=1
     )
-    '''
+
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['POC'].cumsum() / (df.index + 1), mode='lines',name='POCAVG',marker_color='black'))
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['DailyPOCAVG'], mode='lines',name='DailyPOCAVG',marker_color='black'))
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['DailyLowVAAVG'], mode='lines',name='DailyLowVAAVG',marker_color='black'))
@@ -1234,7 +1235,7 @@ def update_graph_live(n_intervals, data):
 
     fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
                       showlegend=False,
-                      height=750,
+                      height=780,
                       xaxis_rangeslider_visible=False,
                       xaxis=dict(range=[int(len(df)*0.90), len(df)]),
                       yaxis=dict(range=[min([i for i in combined_df['low'][int(len(df)*0.90):len(df)]]), max([i for i in combined_df['high'][int(len(df)*0.90):len(df)]])])) #showlegend=False
