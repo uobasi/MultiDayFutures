@@ -1150,6 +1150,9 @@ def update_graph_live(n_intervals, data):
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuyPercent'], marker_color='teal'), row=2, col=1) #tst
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSellPercent'], marker_color='crimson'), row=2, col=1)
 
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuy'], marker_color='teal'), row=2, col=1) #tst
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSell'], marker_color='crimson'), row=2, col=1)
+    '''
     fig.add_trace(
         go.Bar(
             x=pd.Series([i for i in range(len(df))]),
@@ -1175,7 +1178,7 @@ def update_graph_live(n_intervals, data):
         ),
          row=3, col=1
     )
-
+    '''
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['POC'].cumsum() / (df.index + 1), mode='lines',name='POCAVG',marker_color='black'))
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['DailyPOCAVG'], mode='lines',name='DailyPOCAVG',marker_color='black'))
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['DailyLowVAAVG'], mode='lines',name='DailyLowVAAVG',marker_color='black'))
