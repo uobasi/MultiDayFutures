@@ -1556,7 +1556,8 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
                                  high=df['high'],
                                  low=df['low'],
                                  close=df['close'],
-                                 name="OHLC"),
+                                 name="OHLC",
+                                 hoovertext=df['time'].tolist()),
                   row=1, col=1)
 
 
