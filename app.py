@@ -1640,36 +1640,36 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
 
 
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_2Cum'], mode='lines', opacity=0.50, name='UPPERVWAP2', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N2Cum'], mode='lines', opacity=0.50, name='LOWERVWAP2', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_2Cum'], mode='lines', opacity=0.8, name='UPPERVWAP2', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N2Cum'], mode='lines', opacity=0.8, name='LOWERVWAP2', line=dict(color='black')))
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_25Cum'], mode='lines', opacity=0.5, name='UPPERVWAP2.5', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N25Cum'], mode='lines', opacity=0.5, name='LOWERVWAP2.5', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_25Cum'], mode='lines', opacity=0.8, name='UPPERVWAP2.5', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N25Cum'], mode='lines', opacity=0.8, name='LOWERVWAP2.5', line=dict(color='black')))
    
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_1Cum'], mode='lines', opacity=0.5, name='UPPERVWAP1', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N1Cum'], mode='lines', opacity=0.5, name='LOWERVWAP1', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_1Cum'], mode='lines', opacity=0.8, name='UPPERVWAP1', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N1Cum'], mode='lines', opacity=0.8, name='LOWERVWAP1', line=dict(color='black')))
             
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_15Cum'], mode='lines', opacity=0.5, name='UPPERVWAP1.5', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N15Cum'], mode='lines', opacity=0.5, name='LOWERVWAP1.5', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_15Cum'], mode='lines', opacity=0.8, name='UPPERVWAP1.5', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N15Cum'], mode='lines', opacity=0.8, name='LOWERVWAP1.5', line=dict(color='black')))
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_0Cum'], mode='lines', opacity=0.5, name='UPPERVWAP0.5', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N0Cum'], mode='lines', opacity=0.5, name='LOWERVWAP0.5', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_0Cum'], mode='lines', opacity=0.8, name='UPPERVWAP0.5', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N0Cum'], mode='lines', opacity=0.8, name='LOWERVWAP0.5', line=dict(color='black')))
 
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_075Cum'], mode='lines', opacity=0.5, name='UPPERVWAP0.75', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N075Cum'], mode='lines', opacity=0.5, name='LOWERVWAP0.75', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_075Cum'], mode='lines', opacity=0.8, name='UPPERVWAP0.75', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N075Cum'], mode='lines', opacity=0.8, name='LOWERVWAP0.75', line=dict(color='black')))
             
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_125Cum'], mode='lines', opacity=0.5, name='UPPERVWAP1.25', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N125Cum'], mode='lines', opacity=0.5, name='LOWERVWAP1.25', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_125Cum'], mode='lines', opacity=0.8, name='UPPERVWAP1.25', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N125Cum'], mode='lines', opacity=0.8, name='LOWERVWAP1.25', line=dict(color='black')))
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_175Cum'], mode='lines', opacity=0.5, name='UPPERVWAP1.75', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N175Cum'], mode='lines', opacity=0.5, name='LOWERVWAP1.75', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_175Cum'], mode='lines', opacity=0.8, name='UPPERVWAP1.75', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N175Cum'], mode='lines', opacity=0.8, name='LOWERVWAP1.75', line=dict(color='black')))
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_225Cum'], mode='lines', opacity=0.5, name='UPPERVWAP2.25', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N225Cum'], mode='lines', opacity=0.5, name='LOWERVWAP2.25', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_225Cum'], mode='lines', opacity=0.8, name='UPPERVWAP2.25', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N225Cum'], mode='lines', opacity=0.8, name='LOWERVWAP2.25', line=dict(color='black')))
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_025Cum'], mode='lines', opacity=0.5, name='UPPERVWAP0.25', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N025Cum'], mode='lines', opacity=0.5, name='LOWERVWAP0.25', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_025Cum'], mode='lines', opacity=0.8, name='UPPERVWAP0.25', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N025Cum'], mode='lines', opacity=0.8, name='LOWERVWAP0.25', line=dict(color='black')))
            
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayPOC'], mode='lines', name='prevDayPOC', line=dict(color='crimson')))
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayHVA'], mode='lines', name='prevDayHVA', line=dict(color='green')))   
