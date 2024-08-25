@@ -1685,8 +1685,8 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     # Update y-axis range for the specific subplot
     fig.update_yaxes(
         range=[
-            min([i for i in combined_df['topOrderSellPercent'][int(len(df) * 0.90):len(df)]]), 
-            max([i for i in combined_df['topOrderBuyPercent'][int(len(df) * 0.90):len(df)]])
+            min([i for i in combined_df['topOrderSellPercent'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['topOrderBuyPercent'][int(len(df) * 0.90):len(df)]]), 
+            max([i for i in combined_df['topOrderBuyPercent'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['topOrderSellPercent'][int(len(df) * 0.90):len(df)]])
         ],
         row=2, col=1
     )
