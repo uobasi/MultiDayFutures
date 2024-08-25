@@ -1697,6 +1697,14 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
 
     fig.update_yaxes(
         range=[
+            min([i for i in combined_df['buyDiffSum'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['sellDiffSum'][int(len(df) * 0.90):len(df)]]), 
+            max([i for i in combined_df['sellDiffSum'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['buyDiffSum'][int(len(df) * 0.90):len(df)]])
+        ],
+        row=4, col=1
+    )
+
+    fig.update_yaxes(
+        range=[
             min([i for i in combined_df['topDiff'][int(len(df) * 0.90):len(df)]]), 
             max([i for i in combined_df['topDiff'][int(len(df) * 0.90):len(df)]])
         ],
