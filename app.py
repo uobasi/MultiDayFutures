@@ -919,6 +919,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
         df1 = pd.DataFrame([[fbuyss[i],fsellss[i]] for i in range(len(fbuyss))], columns=['buyCountCum', 'sellCountCum'])
         df= pd.concat([df, df1],  axis = 1)
         #-----------------------------------------------------------------------------------------------------------
+        '''
         fbuyss = []
         fsellss = []
         
@@ -940,7 +941,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
         
         df1 = pd.DataFrame([[fbuyss[i],fsellss[i]] for i in range(len(fbuyss))], columns=['buyDiffSum', 'sellDiffSum'])
         df= pd.concat([df, df1],  axis = 1)
-        
+        '''
         
         
         #--------------------------------------------------------------------------------------------------------------
@@ -1054,6 +1055,27 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
         stored_data = pd.concat([stored_data, df], ignore_index=True)
         stored_data['DailyPOCAVG']= stored_data['POC'].cumsum() / (stored_data.index + 1)
         df = stored_data.copy(deep=True)
+        fbuyss = []
+        fsellss = []
+        
+        for indx in range(len(df['indes'])):
+                
+            buys = [i for i in df['buyCount'].iloc[:indx+1]]
+            sells = [i for i in df['sellCount'].iloc[:indx+1]]
+            
+            
+                
+            newBuys = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] > 0]
+            newSells = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] < 0]
+            
+            buySum = sum(newBuys)
+            sellSum = sum(newSells)
+            
+            fbuyss.append(buySum)
+            fsellss.append(sellSum)
+
+        df['buyDiffSum'] = pd.Series([i for i in fbuyss])
+        df['sellDiffSum'] = pd.Series([i for i in fsellss])
         stored_data = df.to_dict(orient='records')
         
         #df.to_csv(stkName+'Data-3.csv', index=False)
