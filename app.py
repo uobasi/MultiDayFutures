@@ -1625,8 +1625,8 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
                 else 'gray' for i in df['topDiff']] #tst  df['buySellDif']
     
     fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topDiff'], marker_color=coll, name='topOrderDifference'), row=3, col=1) #tst
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['buyCount5C'], marker_color='teal', name='buyCount5C'), row=2, col=1) #tst
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['sellCount5C'], marker_color='crimson', name='sellCount5C'), row=2, col=1)
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuyPercent'], marker_color='teal', name='topOrderBuyPercent'), row=2, col=1) #tst
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSellPercent'], marker_color='crimson', name='topOrderSellPercent'), row=2, col=1)
 
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['buyDiffSum'], marker_color='teal', name='buyDiffSum'), row=4, col=1) #tst
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['sellDiffSum'], marker_color='crimson', name='sellDiffSum'), row=4, col=1) #tst
