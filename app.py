@@ -1016,7 +1016,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
                     prevDf_min_cols.append(cl)
                    
         #---------------------------------------------------------------
-        
+        '''
         lfbuySum = []
         lfsellSum = []
         
@@ -1033,7 +1033,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
         
         df1 = pd.DataFrame(lfsellSum, columns=['sellCount5C'])
         df = pd.concat([df, df1],  axis = 1)
-                
+        '''       
         
         #---------------------------------------------------------------
         
@@ -1076,6 +1076,22 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
 
         df['buyDiffSum'] = pd.Series([i for i in fbuyss])
         df['sellDiffSum'] = pd.Series([i for i in fsellss])
+
+        lfbuySum = []
+        lfsellSum = []
+        
+        for indx in range(len(df['indes'])):
+            if indx - 4 < 0:
+                lfbuySum.append(sum(df['buyCount'][:indx+1]))
+                lfsellSum.append(sum(df['sellCount'][:indx+1]))
+            elif indx - 4 >= 0:
+                lfbuySum.append(sum(df['buyCount'][indx-4:indx+1]))
+                lfsellSum.append(sum(df['sellCount'][indx-4:indx+1]))
+                
+        df['buyCount5C'] = pd.Series([i for i in lfbuySum])
+        df['sellCount5C'] = pd.Series([i for i in lfbuySum])
+
+
         stored_data = df.to_dict(orient='records')
         
         #df.to_csv(stkName+'Data-3.csv', index=False)
@@ -1620,13 +1636,20 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     #tst = pd.Series([df['topOrderBuy'][i] - df['topOrderSell'][i] for i in  range(len(df))])
 
     df['topDiff'] = df['topOrderBuy'] - df['topOrderSell']
+    df['diff5c'] = df['buyCount5C'] - df['sellCount5C']
     coll = [     'teal' if i > 0
                 else 'crimson' if i < 0
                 else 'gray' for i in df['topDiff']] #tst  df['buySellDif']
+
+    colll = [     'teal' if i > 0
+                else 'crimson' if i < 0
+                else 'gray' for i in df['diff5c']]
     
     fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topDiff'], marker_color=coll, name='topOrderDifference'), row=3, col=1) #tst
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuyPercent'], marker_color='teal', name='topOrderBuyPercent'), row=2, col=1) #tst
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSellPercent'], marker_color='crimson', name='topOrderSellPercent'), row=2, col=1)
+    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['diff5c'], marker_color=colll, name='diff5c'), row=2, col=1) #tst
+    
+    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuyPercent'], marker_color='teal', name='topOrderBuyPercent'), row=2, col=1) #tst
+    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSellPercent'], marker_color='crimson', name='topOrderSellPercent'), row=2, col=1)
 
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['buyDiffSum'], marker_color='teal', name='buyDiffSum'), row=4, col=1) #tst
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['sellDiffSum'], marker_color='crimson', name='sellDiffSum'), row=4, col=1) #tst
@@ -1711,8 +1734,8 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     # Update y-axis range for the specific subplot
     fig.update_yaxes(
         range=[
-            min([i for i in combined_df['topOrderSellPercent'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['topOrderBuyPercent'][int(len(df) * 0.90):len(df)]]), 
-            max([i for i in combined_df['topOrderBuyPercent'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['topOrderSellPercent'][int(len(df) * 0.90):len(df)]])
+            min([i for i in combined_df['diff5c'][int(len(df) * 0.90):len(df)]]), 
+            max([i for i in combined_df['diff5c'][int(len(df) * 0.90):len(df)]])
         ],
         row=2, col=1
     )
