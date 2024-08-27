@@ -1758,7 +1758,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
 
     fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
                       showlegend=False,
-                      height=780,
+                      height=800,
                       xaxis_rangeslider_visible=False,
                       xaxis=dict(range=[int(len(df)*0.90), len(df)]),
                       yaxis=dict(range=[min([i for i in combined_df['low'][int(len(df)*0.90):len(df)]]), max([i for i in combined_df['high'][int(len(df)*0.90):len(df)]])])) #showlegend=False
