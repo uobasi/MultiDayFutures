@@ -1089,7 +1089,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
                 lfsellSum.append(sum(df['sellCount'][indx-4:indx+1]))
                 
         df['buyCount5C'] = pd.Series([i for i in lfbuySum])
-        df['sellCount5C'] = pd.Series([i for i in lfbuySum])
+        df['sellCount5C'] = pd.Series([i for i in lfsellSum])
 
 
         stored_data = df.to_dict(orient='records')
