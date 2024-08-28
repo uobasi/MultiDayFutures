@@ -1055,10 +1055,12 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
         stored_data = pd.concat([stored_data, df], ignore_index=True)
         stored_data['DailyPOCAVG']= stored_data['POC'].cumsum() / (stored_data.index + 1)
         df = stored_data.copy(deep=True)
+        df['indes'] = pd.Series([i for i in range(0,len(df))])
+
         fbuyss = []
         fsellss = []
         
-        for indx in range(len(df['indes'])):
+        for indx in range(len(df)):
                 
             buys = [i for i in df['buyCount'].iloc[:indx+1]]
             sells = [i for i in df['sellCount'].iloc[:indx+1]]
@@ -1080,7 +1082,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
         lfbuySum = []
         lfsellSum = []
         
-        for indx in range(len(df['indes'])):
+        for indx in range(len(df)):
             if indx - 4 < 0:
                 lfbuySum.append(sum(df['buyCount'][:indx+1]))
                 lfsellSum.append(sum(df['sellCount'][:indx+1]))
@@ -1367,7 +1369,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
         fbuyss = []
         fsellss = []
         
-        for indx in range(len(df['indes'])):
+        for indx in range(len(df)):
                 
             buys = [i for i in df['buyCount'].iloc[:indx+1]]
             sells = [i for i in df['sellCount'].iloc[:indx+1]]
@@ -1382,7 +1384,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
         fbuyss = []
         fsellss = []
         
-        for indx in range(len(df['indes'])):
+        for indx in range(len(df)):
                 
             buys = [i for i in df['buyCount'].iloc[:indx+1]]
             sells = [i for i in df['sellCount'].iloc[:indx+1]]
@@ -1479,7 +1481,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
         lfbuySum = []
         lfsellSum = []
         
-        for indx in range(len(df['indes'])):
+        for indx in range(len(df)):
             if indx - 4 < 0:
                 lfbuySum.append(sum(df['buyCount'][:indx+1]))
                 lfsellSum.append(sum(df['sellCount'][:indx+1]))
