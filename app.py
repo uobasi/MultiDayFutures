@@ -1628,9 +1628,9 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
 
 
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['uppervwapAvg'], mode='lines', name='uppervwapAvg', ))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['lowervwapAvg'], mode='lines',name='lowervwapAvg', ))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapAvg'], mode='lines', name='vwapAvg', ))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['uppervwapAvg'], mode='lines', opacity=0.5, name='uppervwapAvg', ))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['lowervwapAvg'], mode='lines', opacity=0.5,name='lowervwapAvg', ))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapAvg'], mode='lines', opacity=0.5, name='vwapAvg', ))
 
 
     #tst = pd.Series([df['topOrderBuy'][i] - df['topOrderSell'][i] for i in  range(len(df))])
@@ -1721,9 +1721,9 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_025Cum'], mode='lines', opacity=0.8, name='UPPERVWAP0.25', line=dict(color='black')))
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N025Cum'], mode='lines', opacity=0.8, name='LOWERVWAP0.25', line=dict(color='black')))
            
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayPOC'], mode='lines', name='prevDayPOC', line=dict(color='crimson')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayHVA'], mode='lines', name='prevDayHVA', line=dict(color='green')))   
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayLVA'], mode='lines', name='prevDayLVA', line=dict(color='purple'))) 
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayPOC'], mode='lines', name='prevDayPOC', opacity=0.5, line=dict(color='crimson')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayHVA'], mode='lines', name='prevDayHVA', opacity=0.5, line=dict(color='green')))   
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayLVA'], mode='lines', name='prevDayLVA', opacity=0.5, line=dict(color='purple'))) 
 
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapCum'], mode='lines', name='vwapCum', line=dict(color='crimson')))
     
