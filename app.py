@@ -1050,30 +1050,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
         df1 = pd.DataFrame(finall, columns=['topOrderBuy', 'topOrderSell', 'topOrderBuyPercent', 'topOrderSellPercent'])
         df = pd.concat([df, df1],  axis = 1)
         
-        '''
-        temp = pd.concat([stored_data, df], ignore_index=True)
-        for trt in tpo:
-            for t in trt:
-                t[6] = temp['timestamp'].searchsorted(t[2])
-                
-        buys = 0
-        sells = 0
-        finall = []
-        for i in range(len(tpo)):
-            for x in tpo[i]:
-                if x[6] == len(stored_data)+i:
-                    if x[3] == 'A':
-                        sells+=x[1]
-                    elif x[3] == 'B':
-                        buys+=x[1]
-            finall.append([buys,sells])
-            buys = 0
-            sells = 0
-            
-        df1 = pd.DataFrame(finall, columns=['topOrderBuyPerCandle', 'topOrderSellPerCandle'])
-        df= pd.concat([df, df1],  axis = 1)
-        '''
-        
+
         print(stkName)
         stored_data = stored_data.iloc[:-1]
         stored_data = pd.concat([stored_data, df], ignore_index=True)
@@ -1145,8 +1122,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
             # Reorder the DataFrame
             df = df[new_column_order]
             combined_df = pd.concat([prevDf, df], ignore_index=True)
-            #combined_df.to_csv(stkName+'Data-4.csv', index=False)  #mode='a',
-            #df.to_csv(stkName+'Data-1.csv',mode='a', index=False) 
+
             
         elif df.shape[1] > prevDf.shape[1]:
             pattern = 'Cluster'
@@ -1660,22 +1636,6 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['100ema'], mode='lines', opacity=0.50, name='100ema',marker_color='rgba(0,0,0)'))
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['200ema'], mode='lines', opacity=0.50,name='200ema',marker_color='rgba(0,0,0)'))
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['50ema'], mode='lines', opacity=0.50,name='50ema',marker_color='rgba(0,0,0)'))
-    '''
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_2'], mode='lines', opacity=0.1, name='UPPERVWAP2', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N2'], mode='lines', opacity=0.1, name='LOWERVWAP2', line=dict(color='black')))
-
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_25'], mode='lines', opacity=0.15, name='UPPERVWAP2.5', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N25'], mode='lines', opacity=0.15, name='LOWERVWAP2.5', line=dict(color='black')))
-   
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_1'], mode='lines', opacity=0.1, name='UPPERVWAP1', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N1'], mode='lines', opacity=0.1, name='LOWERVWAP1', line=dict(color='black')))
-            
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_15'], mode='lines', opacity=0.1, name='UPPERVWAP1.5', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N15'], mode='lines', opacity=0.1, name='LOWERVWAP1.5', line=dict(color='black')))
-
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_0'], mode='lines', opacity=0.1, name='UPPERVWAP0.5', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N0'], mode='lines', opacity=0.1, name='LOWERVWAP0.5', line=dict(color='black')))
-    '''
 
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['LowVA'], mode='lines', opacity=0.5, name='LowVA', line=dict(color='black')))
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['HighVA'], mode='lines', opacity=0.5, name='HighVA', line=dict(color='black')))
@@ -1817,7 +1777,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     '''
     fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
                       showlegend=False,
-                      height=800,
+                      height=850,
                       xaxis_rangeslider_visible=False,
                       xaxis=dict(range=[int(len(df)*0.90), len(df)]),
                       yaxis=dict(range=[min([i for i in combined_df['low'][int(len(df)*0.90):len(df)]]), max([i for i in combined_df['high'][int(len(df)*0.90):len(df)]])])) #showlegend=False
@@ -1830,11 +1790,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     if stkName != previous_stkName:
         interval_time = initial_inter
         
-        
-    #if has_time_passed(checkTime):
-    #    checkTime = datetime.combine(datetime.utcnow().date()+timedelta(days=1), time(22, 0, 0))
-    #    stored_data = None
-        
+
     # Show the chart
     #fig.show() 
     
