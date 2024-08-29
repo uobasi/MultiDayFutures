@@ -423,7 +423,7 @@ bucket = gclient.get_bucket("stockapp-storage")
 
 from dash import Dash, dcc, html, Input, Output, callback, State
 initial_inter = 400000#60000
-subsequent_inter = 100000 
+subsequent_inter = 130000 
 app = Dash()
 app.layout = html.Div([
     
@@ -1616,7 +1616,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
                                [{}],
                                [{}],], #[{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
                          horizontal_spacing=0.00, vertical_spacing=0.00, # subplot_titles=(stkName +' '+ str(datetime.now().time()))' (Sell:'+str(putDec)+' ('+str(round(NumPut,2))+') | '+'Buy:'+str(CallDec)+' ('+str(round(NumCall,2))+') \n '+' (Sell:'+str(thputDec)+' ('+str(round(thNumPut,2))+') | '+'Buy:'+str(thCallDec)+' ('+str(round(thNumCall,2))+') \n '
-                         row_width=[0.15,0.10,0.75,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 
+                         row_width=[0.10,0.15,0.75,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 
 
     
     
