@@ -725,7 +725,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
             
             newwT = []
             for x in mTrade[:100]:
-                newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], df['timestamp'].searchsorted(x[2])-1])
+                newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], stored_data['timestamp'].searchsorted(x[2])-1])
                 
             
                 
@@ -759,7 +759,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
             
             newwT = []
             for x in mTrade[:100]:
-                newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], df['timestamp'].searchsorted(x[2])-1])
+                newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], stored_data['timestamp'].searchsorted(x[2])-1])
                 
             
                 
@@ -1050,6 +1050,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
         df1 = pd.DataFrame(finall, columns=['topOrderBuy', 'topOrderSell', 'topOrderBuyPercent', 'topOrderSellPercent'])
         df = pd.concat([df, df1],  axis = 1)
         
+        '''
         temp = pd.concat([stored_data, df], ignore_index=True)
         for trt in tpo:
             for t in trt:
@@ -1071,6 +1072,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
             
         df1 = pd.DataFrame(finall, columns=['topOrderBuyPerCandle', 'topOrderSellPerCandle'])
         df= pd.concat([df, df1],  axis = 1)
+        '''
         
         print(stkName)
         stored_data = stored_data.iloc[:-1]
@@ -1533,24 +1535,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
             
         df1 = pd.DataFrame(finall, columns=['topOrderBuy', 'topOrderSell', 'topOrderBuyPercent', 'topOrderSellPercent'])
         df = pd.concat([df, df1],  axis = 1)
-        
-        buys = 0
-        sells = 0
-        finall = []
-        for i in range(len(tpo)):
-            for x in tpo[i]:
-                if x[6] == i:
-                    if x[3] == 'A':
-                        sells+=x[1]
-                    elif x[3] == 'B':
-                        buys+=x[1]
-            finall.append([buys,sells])
-            buys = 0
-            sells = 0
-            
-        df1 = pd.DataFrame(finall, columns=['topOrderBuyPerCandle', 'topOrderSellPerCandle'])
-        df= pd.concat([df, df1],  axis = 1)
-        
+
         print(stkName)
         #df.to_csv(stkName+'Data-3.csv', index=False)
         #prevDf = pd.read_csv(stkName+'Data-2.csv')
@@ -1620,15 +1605,42 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     PPPCum(combined_df) 
     combined_df['POCAVGCum'] = combined_df['POC'].cumsum() / (combined_df.index + 1)
     df = combined_df
-
     
-    fig = make_subplots(rows=4, cols=1, shared_xaxes=True, shared_yaxes=True,
+    last_zero_index = df[df['indes'] == 0].index[-1]
+    tempyDF = df.loc[last_zero_index:].reset_index(drop=True)
+    
+    samp = [col for col in tempyDF.columns if col.startswith('TopOrders')]
+
+    cke = []
+    buys = 0
+    sells = 0
+    fstat = []
+                
+    for i in range(0, len(samp), 5):
+        cke.append(samp[i:i + 5])
+    
+    for i in range(len(tempyDF)):
+        for x in cke:
+            if tempyDF['indes'][i] == tempyDF[x[2]][i]:
+                if tempyDF[x[3]][i] == 0:
+                    sells+=tempyDF[x[1]][i]
+                elif tempyDF[x[3]][i] == 1:
+                    buys+=tempyDF[x[1]][i]
+        fstat.append([buys,sells])
+        buys = 0
+        sells = 0
+    
+    df['topOrderBuyPerCandle'].iloc[last_zero_index:] = pd.Series([i[0] for i in fstat])
+    df['topOrderSellPerCandle'].iloc[last_zero_index:] = pd.Series([i[1] for i in fstat])
+    
+    
+    
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, shared_yaxes=True,
                         specs=[[{}],
-                               [{}],
                                [{}],
                                [{}],], #[{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
                          horizontal_spacing=0.00, vertical_spacing=0.00, # subplot_titles=(stkName +' '+ str(datetime.now().time()))' (Sell:'+str(putDec)+' ('+str(round(NumPut,2))+') | '+'Buy:'+str(CallDec)+' ('+str(round(NumCall,2))+') \n '+' (Sell:'+str(thputDec)+' ('+str(round(thNumPut,2))+') | '+'Buy:'+str(thCallDec)+' ('+str(round(thNumCall,2))+') \n '
-                         row_width=[0.10,0.10,0.10,0.70,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 
+                         row_width=[0.12,0.12,0.75,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 
 
     
     
@@ -1689,16 +1701,16 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
                 else 'crimson' if i < 0
                 else 'gray' for i in df['topDiffPerCandle']]
     
-    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topDiff'], marker_color=coll, name='topOrderDifference'), row=3, col=1) #tst
+    #fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topDiff'], marker_color=coll, name='topOrderDifference'), row=3, col=1) #tst
     #fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['diff5c'], marker_color=colll, name='diff5c'), row=2, col=1) #tst
     
-    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topDiffPerCandle'], marker_color=colll, name='topDiffPerCandle'), row=2, col=1) #tst
+    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topDiffPerCandle'], marker_color=colll, name='topDiffPerCandle', hovertext=df['time'].tolist()), row=2, col=1) #tst
 
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuyPercent'], marker_color='teal', name='topOrderBuyPercent'), row=2, col=1) #tst
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSellPercent'], marker_color='crimson', name='topOrderSellPercent'), row=2, col=1)
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['buyDiffSum'], marker_color='teal', name='buyDiffSum'), row=4, col=1) #tst
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['sellDiffSum'], marker_color='crimson', name='sellDiffSum'), row=4, col=1) #tst
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['buyDiffSum'], marker_color='teal', name='buyDiffSum'), row=3, col=1) #tst
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['sellDiffSum'], marker_color='crimson', name='sellDiffSum'), row=3, col=1) #tst
 
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuy'], marker_color='teal'), row=3, col=1) #tst
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSell'], marker_color='crimson'), row=3, col=1)
@@ -1791,9 +1803,10 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
             min([i for i in combined_df['buyDiffSum'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['sellDiffSum'][int(len(df) * 0.90):len(df)]]), 
             max([i for i in combined_df['sellDiffSum'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['buyDiffSum'][int(len(df) * 0.90):len(df)]])
         ],
-        row=4, col=1
+        row=3, col=1
     )
 
+    '''
     fig.update_yaxes(
         range=[
             min([i for i in combined_df['topDiff'][int(len(df) * 0.90):len(df)]]), 
@@ -1801,14 +1814,16 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
         ],
         row=3, col=1
     )
-
+    '''
     fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
                       showlegend=False,
                       height=800,
                       xaxis_rangeslider_visible=False,
                       xaxis=dict(range=[int(len(df)*0.90), len(df)]),
                       yaxis=dict(range=[min([i for i in combined_df['low'][int(len(df)*0.90):len(df)]]), max([i for i in combined_df['high'][int(len(df)*0.90):len(df)]])])) #showlegend=False
-        
+    
+    fig.update_xaxes(showticklabels=False, row=3, col=1)
+    
     if interval_time == initial_inter:
         interval_time = subsequent_inter
         
