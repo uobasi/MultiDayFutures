@@ -422,7 +422,7 @@ gclient = storage.Client(project="stockapp-401615")
 bucket = gclient.get_bucket("stockapp-storage")
 
 from dash import Dash, dcc, html, Input, Output, callback, State
-initial_inter = 400000#60000
+initial_inter = 500000#60000
 subsequent_inter = 100000 
 app = Dash()
 app.layout = html.Div([
