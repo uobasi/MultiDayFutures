@@ -1642,9 +1642,9 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
 
 
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['uppervwapAvg'], mode='lines', opacity=0.5, name='uppervwapAvg', ))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['lowervwapAvg'], mode='lines', opacity=0.5,name='lowervwapAvg', ))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapAvg'], mode='lines', opacity=0.5, name='vwapAvg', ))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['uppervwapAvg'], mode='lines', opacity=0.5, name='uppervwapAvg', hovertext=df['time'].tolist() ))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['lowervwapAvg'], mode='lines', opacity=0.5,name='lowervwapAvg', hovertext=df['time'].tolist()))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapAvg'], mode='lines', opacity=0.5, name='vwapAvg', hovertext=df['time'].tolist() ))
 
 
     #tst = pd.Series([df['topOrderBuy'][i] - df['topOrderSell'][i] for i in  range(len(df))])
@@ -1669,8 +1669,8 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuyPercent'], marker_color='teal', name='topOrderBuyPercent'), row=2, col=1) #tst
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSellPercent'], marker_color='crimson', name='topOrderSellPercent'), row=2, col=1)
 
-    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuyPerCandle'], marker_color='teal', name='topOrderBuyPerCandle'), row=3, col=1) #tst
-    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSellPerCandle'], marker_color='crimson', name='topOrderSellPerCandle'), row=3, col=1) #tst
+    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuyPerCandle'], marker_color='teal', name='topOrderBuyPerCandle', hovertext=df['time'].tolist()), row=3, col=1) #tst
+    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSellPerCandle'], marker_color='crimson', name='topOrderSellPerCandle', hovertext=df['time'].tolist()), row=3, col=1) #tst
 
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuy'], marker_color='teal'), row=3, col=1) #tst
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSell'], marker_color='crimson'), row=3, col=1)
