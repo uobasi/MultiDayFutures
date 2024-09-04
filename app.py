@@ -493,7 +493,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
 
 
     
-    interval = '20'
+    interval = '30'
     
     blob = Blob('FuturesOHLC'+str(symbolNum), bucket) 
     FuturesOHLC = blob.download_as_text()
