@@ -407,6 +407,43 @@ def find_clusters(numbers, threshold):
     
     return clusters
 
+def calculate_bollinger_bands(df):
+   df['20sma'] = df['close'].rolling(window=20).mean()
+   df['stddev'] = df['close'].rolling(window=20).std()
+   df['lower_band'] = df['20sma'] - (2 * df['stddev'])
+   df['upper_band'] = df['20sma'] + (2 * df['stddev'])
+
+def calculate_keltner_channels(df):
+   df['TR'] = abs(df['high'] - df['low'])
+   df['ATR'] = df['TR'].rolling(window=20).mean()
+
+   df['lower_keltner'] = df['20sma'] - (df['ATR'] * 1.5)
+   df['upper_keltner'] = df['20sma'] + (df['ATR'] * 1.5)
+
+def calculate_ttm_squeeze(df, n=13):
+    '''
+    df['20sma'] = df['close'].rolling(window=20).mean()
+    highest = df['high'].rolling(window = 20).max()
+    lowest = df['low'].rolling(window = 20).min()
+    m1 = (highest + lowest)/2 
+    df['Momentum'] = (df['close'] - (m1 + df['20sma'])/2)
+    fit_y = np.array(range(0,20))
+    df['Momentum'] = df['Momentum'].rolling(window = 20).apply(lambda x: np.polyfit(fit_y, x, 1)[0] * (20-1) + np.polyfit(fit_y, x, 1)[1], raw=True)
+    
+    '''
+    #calculate_bollinger_bands(df)
+    #calculate_keltner_channels(df)
+    #df['Squeeze'] = (df['upper_band'] - df['lower_band']) - (df['upper_keltner'] - df['lower_keltner'])
+    #df['Squeeze_On'] = df['Squeeze'] < 0
+    #df['Momentum'] = df['close'] - df['close'].shift(20)
+    df['20sma'] = df['close'].rolling(window=n).mean()
+    highest = df['high'].rolling(window = n).max()
+    lowest = df['low'].rolling(window = n).min()
+    m1 = (highest + lowest)/2 
+    df['Momentum'] = (df['close'] - (m1 + df['20sma'])/2)
+    fit_y = np.array(range(0,n))
+    df['Momentum'] = df['Momentum'].rolling(window = n).apply(lambda x: np.polyfit(fit_y, x, 1)[0] * (n-1) + np.polyfit(fit_y, x, 1)[1], raw=True)
+    
 
 symbolNumList = ['118', '4358', '42012334', '392826', '393','163699', '935', '11232']
 symbolNameList = ['ES', 'NQ', 'YM','CL', 'GC', 'HG', 'NG', 'RTY']
@@ -1579,6 +1616,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     
     vwapCum(combined_df)
     PPPCum(combined_df) 
+    calculate_ttm_squeeze(combined_df)
     combined_df['POCAVGCum'] = combined_df['POC'].cumsum() / (combined_df.index + 1)
     df = combined_df
     
@@ -1746,6 +1784,19 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
 
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapCum'], mode='lines', name='vwapCum', line=dict(color='crimson')))
     
+    colors = ['maroon']
+    for val in range(1,len(df['Momentum'])):
+        if df['Momentum'][val] > 0:
+            color = 'teal'
+            if df['Momentum'][val] > df['Momentum'][val-1]:
+                color = '#54C4C1' 
+        else:
+            color = 'maroon'
+            if df['Momentum'][val] < df['Momentum'][val-1]:
+                color='crimson' 
+        colors.append(color)
+    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['Momentum'], marker_color =colors ), row=3, col=1)
+
     fig.update_xaxes(
         range=[int(len(df) * 0.90), len(df)],
         row=2, col=1
@@ -1761,8 +1812,10 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
 
     fig.update_yaxes(
         range=[
-            min([i for i in combined_df['topOrderBuyPerCandle'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['topOrderSellPerCandle'][int(len(df) * 0.90):len(df)]]), 
-            max([i for i in combined_df['topOrderSellPerCandle'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['topOrderBuyPerCandle'][int(len(df) * 0.90):len(df)]])
+            min([i for i in combined_df['Momentum'][int(len(df) * 0.90):len(df)]]), 
+            max([i for i in combined_df['Momentum'][int(len(df) * 0.90):len(df)]])
+            #min([i for i in combined_df['topOrderBuyPerCandle'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['topOrderSellPerCandle'][int(len(df) * 0.90):len(df)]]), 
+            #max([i for i in combined_df['topOrderSellPerCandle'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['topOrderBuyPerCandle'][int(len(df) * 0.90):len(df)]])
         ],
         row=3, col=1
     )
