@@ -1680,9 +1680,9 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
 
 
 
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['uppervwapAvg'], mode='lines', opacity=0.5, name='uppervwapAvg', hovertext=df['time'].tolist() ))
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['lowervwapAvg'], mode='lines', opacity=0.5,name='lowervwapAvg', hovertext=df['time'].tolist()))
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapAvg'], mode='lines', opacity=0.5, name='vwapAvg', hovertext=df['time'].tolist() ))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['uppervwapAvg'], mode='lines', opacity=0.5, name='uppervwapAvg', hovertext=df['time'].tolist() ))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['lowervwapAvg'], mode='lines', opacity=0.5,name='lowervwapAvg', hovertext=df['time'].tolist()))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapAvg'], mode='lines', opacity=0.5, name='vwapAvg', hovertext=df['time'].tolist() ))
 
 
 
