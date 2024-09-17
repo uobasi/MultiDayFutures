@@ -445,7 +445,11 @@ def calculate_ttm_squeeze(df, n=13):
     df['Momentum'] = df['Momentum'].rolling(window = n).apply(lambda x: np.polyfit(fit_y, x, 1)[0] * (n-1) + np.polyfit(fit_y, x, 1)[1], raw=True)
     
 
-symbolNumList = ['118', '4358', '42012334', '392826', '393','163699', '935', '11232']
+
+#symbolNumList = ['118', '4358', '42012334', '392826', '393','163699', '935', '11232']
+#symbolNameList = ['ES', 'NQ', 'YM','CL', 'GC', 'HG', 'NG', 'RTY']
+
+symbolNumList = ['183748', '106364', '42006053', '230943', '393','163699', '935', '42018437']
 symbolNameList = ['ES', 'NQ', 'YM','CL', 'GC', 'HG', 'NG', 'RTY']
 stored_data = None
 
