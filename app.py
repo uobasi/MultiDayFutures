@@ -706,16 +706,21 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     csv_rows = []
     for row in csv_reader:
         csv_rows.append(row)
+
+    try:
+            
+        previousDay = [csv_rows[[i[4] for i in csv_rows].index(symbolNum)][0] ,csv_rows[[i[4] for i in csv_rows].index(symbolNum)][1] ,csv_rows[[i[4] for i in csv_rows].index(symbolNum)][2]]
         
-    previousDay = [csv_rows[[i[4] for i in csv_rows].index(symbolNum)][0] ,csv_rows[[i[4] for i in csv_rows].index(symbolNum)][1] ,csv_rows[[i[4] for i in csv_rows].index(symbolNum)][2]]
-    
+        df['prevDayLVA'] = [float(previousDay[0])]*len(df['time'])
+        df['prevDayHVA'] = [float(previousDay[1])]*len(df['time'])
+        df['prevDayPOC'] = [float(previousDay[2])]*len(df['time'])
+    except(ValueError):
+        pass
     '''
     ----------------------------------------------------------------
     '''
     
-    df['prevDayLVA'] = [float(previousDay[0])]*len(df['time'])
-    df['prevDayHVA'] = [float(previousDay[1])]*len(df['time'])
-    df['prevDayPOC'] = [float(previousDay[2])]*len(df['time'])
+    
     
     df['buyCount'] = pd.Series([i[2] for i in timeFrame])
     df['sellCount'] = pd.Series([i[3] for i in timeFrame])
