@@ -463,7 +463,7 @@ gclient = storage.Client(project="stockapp-401615")
 bucket = gclient.get_bucket("stockapp-storage")
 
 from dash import Dash, dcc, html, Input, Output, callback, State
-initial_inter = 550000#60000
+initial_inter = 600000#60000
 subsequent_inter = 90000 
 app = Dash()
 app.layout = html.Div([
@@ -1795,9 +1795,9 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_025Cum'], mode='lines', opacity=0.8, name='UPPERVWAP0.25', line=dict(color='black')))
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N025Cum'], mode='lines', opacity=0.8, name='LOWERVWAP0.25', line=dict(color='black')))
            
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayPOC'], mode='lines', name='prevDayPOC', opacity=0.8, line=dict(color='orange')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayHVA'], mode='lines', name='prevDayHVA', opacity=0.8, line=dict(color='green')))   
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayLVA'], mode='lines', name='prevDayLVA', opacity=0.8, line=dict(color='purple'))) 
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayPOC'], mode='lines', name='prevDayPOC', opacity=0.8, line=dict(color='orange'),  hovertext=df['time'].tolist()))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayHVA'], mode='lines', name='prevDayHVA', opacity=0.8, line=dict(color='green'),  hovertext=df['time'].tolist()))   
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayLVA'], mode='lines', name='prevDayLVA', opacity=0.8, line=dict(color='purple'),  hovertext=df['time'].tolist())) 
 
     fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapCum'], mode='lines', name='vwapCum', line=dict(color='crimson')))
     
