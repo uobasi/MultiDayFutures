@@ -1627,12 +1627,20 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     PPPCum(combined_df) 
     calculate_ttm_squeeze(combined_df)
     combined_df['POCAVGCum'] = combined_df['POC'].cumsum() / (combined_df.index + 1)
+    
+    bcha = [[0,0]]
+    for i in range(len(combined_df)-1):
+    	bcha.append([combined_df['topOrderBuy'][i+1] - combined_df['topOrderBuy'][i], combined_df['topOrderSell'][i+1] - combined_df['topOrderSell'][i]])
+    	
+    combined_df['topOrderBuyChange'] = pd.Series([i[0] for i in bcha])
+    combined_df['topOrderSellChange'] = pd.Series([i[1] for i in bcha])
+    
     df = combined_df
     
     last_zero_index = df[df['indes'] == 0].index[-1]
     tempyDF = df.loc[last_zero_index:].reset_index(drop=True)
     
-    samp = [col for col in tempyDF.columns if col.startswith('TopOrders')]
+    samp = [col for col in tempyDF.columns if col.startswith('TopOrders_')]
 
     cke = []
     buys = 0
