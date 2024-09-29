@@ -1692,8 +1692,8 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['200ema'], mode='lines', opacity=0.50,name='200ema',marker_color='rgba(0,0,0)'))
     #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['50ema'], mode='lines', opacity=0.50,name='50ema',marker_color='rgba(0,0,0)'))
 
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['LowVA'], mode='lines', opacity=0.5, name='LowVA', line=dict(color='black')))
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['HighVA'], mode='lines', opacity=0.5, name='HighVA', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['LowVA'], mode='lines', opacity=0.5, name='LowVA', line=dict(color='black')))
+    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['HighVA'], mode='lines', opacity=0.5, name='HighVA', line=dict(color='black')))
 
 
 
