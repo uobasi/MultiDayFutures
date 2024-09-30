@@ -1815,22 +1815,22 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['Momentum'], marker_color =colors ), row=3, col=1)
 
     fig.update_xaxes(
-        range=[int(len(df) * 0.90), len(df)],
+        range=[int(len(df) * 0.95), len(df)],
         row=2, col=1
     )
     # Update y-axis range for the specific subplot
     fig.update_yaxes(
         range=[
-            min([i for i in combined_df['topDiffPerCandle'][int(len(df) * 0.90):len(df)]]), 
-            max([i for i in combined_df['topDiffPerCandle'][int(len(df) * 0.90):len(df)]])
+            min([i for i in combined_df['topDiffPerCandle'][int(len(df) * 0.95):len(df)]]), 
+            max([i for i in combined_df['topDiffPerCandle'][int(len(df) * 0.95):len(df)]])
         ],
         row=2, col=1
     )
 
     fig.update_yaxes(
         range=[
-            min([i for i in combined_df['Momentum'][int(len(df) * 0.90):len(df)]]), 
-            max([i for i in combined_df['Momentum'][int(len(df) * 0.90):len(df)]])
+            min([i for i in combined_df['Momentum'][int(len(df) * 0.95):len(df)]]), 
+            max([i for i in combined_df['Momentum'][int(len(df) * 0.95):len(df)]])
             #min([i for i in combined_df['topOrderBuyPerCandle'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['topOrderSellPerCandle'][int(len(df) * 0.90):len(df)]]), 
             #max([i for i in combined_df['topOrderSellPerCandle'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['topOrderBuyPerCandle'][int(len(df) * 0.90):len(df)]])
         ],
@@ -1850,8 +1850,8 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
                       showlegend=False,
                       height=850,
                       xaxis_rangeslider_visible=False,
-                      xaxis=dict(range=[int(len(df)*0.90), len(df)]),
-                      yaxis=dict(range=[min([i for i in combined_df['low'][int(len(df)*0.90):len(df)]]), max([i for i in combined_df['high'][int(len(df)*0.90):len(df)]])])) #showlegend=False
+                      xaxis=dict(range=[int(len(df)*0.95), len(df)]),
+                      yaxis=dict(range=[min([i for i in combined_df['low'][int(len(df)*0.95):len(df)]]), max([i for i in combined_df['high'][int(len(df)*0.95):len(df)]])])) #showlegend=False
     
     fig.update_xaxes(showticklabels=False, row=3, col=1)
     
