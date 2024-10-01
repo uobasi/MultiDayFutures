@@ -456,6 +456,7 @@ def calculate_ttm_squeeze(df, n=13):
 symbolNumList = ['183748', '106364', '42006053', '230943', '393','163699', '923', '42018437']
 symbolNameList = ['ES', 'NQ', 'YM','CL', 'GC', 'HG', 'NG', 'RTY']
 stored_data = None
+intList = ['1','2','3','4','5','6','10','15','20','30']
 
 def has_time_passed(checkTime):
     current_time = datetime.utcnow()
@@ -466,26 +467,85 @@ checkTime = datetime.combine(datetime.utcnow().date(), time(22, 0, 0))
 gclient = storage.Client(project="stockapp-401615")
 bucket = gclient.get_bucket("stockapp-storage")
 
+styles = {
+    'main_container': {
+        'display': 'flex',
+        'flexDirection': 'row',  # Align items in a row
+        'justifyContent': 'space-around',  # Space between items
+        'flexWrap': 'wrap',  # Wrap items if screen is too small
+        #'marginTop': '20px',
+        'background': '#E5ECF6',  # Soft light blue background
+        'padding': '20px',
+        #'borderRadius': '10px'  # Optional: adds rounded corners for better aesthetics
+    },
+    'sub_container': {
+        'display': 'flex',
+        'flexDirection': 'column',  # Align items in a column within each sub container
+        'alignItems': 'center',
+        'margin': '10px'
+    },
+    'input': {
+        'width': '150px',
+        'height': '35px',
+        'marginBottom': '10px',
+        'borderRadius': '5px',
+        'border': '1px solid #ddd',
+        'padding': '0 10px'
+    },
+    'button': {
+        'width': '100px',
+        'height': '35px',
+        'borderRadius': '10px',
+        'border': 'none',
+        'color': 'white',
+        'background': '#333333',  # Changed to a darker blue color
+        'cursor': 'pointer'
+    },
+    'label': {
+        'textAlign': 'center'
+    }
+}
+
 from dash import Dash, dcc, html, Input, Output, callback, State
 initial_inter = 600000#60000
 subsequent_inter = 120000 
 app = Dash()
+
+
+
 app.layout = html.Div([
     
-    dcc.Graph(id='graph'),
+    dcc.Graph(id='graph', config={'modeBarButtonsToAdd': ['drawline']}),
     dcc.Interval(
         id='interval',
         interval=initial_inter,
         n_intervals=0,
-      ),
+    ),
 
-    html.Div(dcc.Input(id='input-on-submit', type='text')),
-    html.Button('Submit', id='submit-val', n_clicks=0),
-    html.Div(id='container-button-basic',children="Enter a symbol from |'ES', 'NQ', 'YM','CL', 'GC', 'HG', 'NG'| and submit"),
-    dcc.Store(id='stkName-value'),
+    html.Div([
+        html.Div([
+            dcc.Input(id='input-on-submit', type='text', style=styles['input']),
+            html.Button('Submit', id='submit-val', n_clicks=0, style=styles['button']),
+            html.Div(id='container-button-basic', children="Enter a symbol from 'ES', 'NQ', 'YM', 'CL', 'GC', 'HG', 'NG', 'RTY'", style=styles['label']),
+        ], style=styles['sub_container']),
+        dcc.Store(id='stkName-value'),
+        
+        html.Div([
+            dcc.Input(id='input-on-interv', type='text', style=styles['input']),
+            html.Button('Submit', id='submit-interv', n_clicks=0, style=styles['button']),
+            html.Div(id='interv-button-basic',children="Enter interval from 5, 10, 15, 30", style=styles['label']),
+        ], style=styles['sub_container']),
+        dcc.Store(id='interv-value'),
+
+
+    ], style=styles['main_container']),
+    
+    
     dcc.Store(id='data-store'),
+    dcc.Store(id='previous-interv'),
+    dcc.Store(id='previous-stkName'),
     dcc.Store(id='interval-time', data=initial_inter),
-    dcc.Store(id='previous-stkName')
+  
 ])
 
 @callback(
@@ -507,21 +567,41 @@ def update_output(n_clicks, value):
     else:
         return 'The input symbol was '+str(value)+" is not accepted please try different symbol from  |'ES', 'NQ', 'YM','CL', 'GC', 'HG', 'NG'|  ", 'The input symbol was '+str(value)+" is not accepted please try different symbol  |'ESH4' 'NQH4' 'CLG4' 'GCG4' 'NGG4' 'HGH4' 'YMH4' 'BTCZ3' 'RTYH4'|  "
 
+@callback(
+    Output('interv-value', 'data'),
+    Output('interv-button-basic', 'children'),
+    Input('submit-interv', 'n_clicks'),
+    State('input-on-interv', 'value'),
+    prevent_initial_call=True
+)
+def update_interval(n_clicks, value):
+    value = str(value)
+    
+    if value in intList:
+        print('The input interval was "{}" '.format(value))
+        return str(value), str(value), 
+    else:
+        return 'The input interval '+str(value)+" is not accepted please try different interval from  |'1' '2' '3' '5' '10' '15'|", 'The input interval '+str(value)+" is not accepted please try different interval from  |'1' '2' '3' '5' '10' '15'|"
+
+
 @callback([Output('graph', 'figure'),
            Output('data-store', 'data'),
            Output('interval', 'interval'),
-           Output('previous-stkName', 'data')],#Output('previous-stkName', 'data')
+           Output('previous-stkName', 'data'),
+           Output('previous-interv', 'data'),],#Output('previous-stkName', 'data')
           Input('interval', 'n_intervals'),
           [State('stkName-value', 'data'),
+           State('interv-value', 'data'),
            State('data-store', 'data'),
            State('interval-time', 'data'),
-           State('previous-stkName', 'data')])#State('previous-stkName', 'data')
+           State('previous-stkName', 'data'),
+           State('previous-interv', 'data'),])#State('previous-stkName', 'data')
 
 
     
 
 
-def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_stkName): #,previous_stkName
+def update_graph_live(n_intervals, sname, interv, stored_data, interval_time, previous_stkName, previous_interv): #,previous_stkName
     print('inFunction')	
 
     if sname in symbolNameList:
@@ -532,13 +612,14 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
         sname = 'NQ' 
         symbolNum = symbolNumList[symbolNameList.index(stkName)]
         
+    
+    if interv not in intList:
+        interv = '15'
         
-    if stkName != previous_stkName:
+        
+    if stkName != previous_stkName or interv != previous_interv:
         stored_data = None
 
-
-    
-    interval = '20'
     
     blob = Blob('FuturesOHLC'+str(symbolNum), bucket) 
     FuturesOHLC = blob.download_as_text()
@@ -578,7 +659,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     
     df.set_index('strTime', inplace=True)
     df['volume'] = pd.to_numeric(df['volume'], downcast='integer')
-    df_resampled = df.resample(interval+'T').agg({
+    df_resampled = df.resample(interv+'T').agg({
         'timestamp': 'first',
         'name': 'last',
         'open': 'first',
@@ -666,7 +747,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     timeDict = {}
     for ttm in dtime:
         for tradMade in tempTrades[bisect.bisect_left(tradeTimes, ttm):]:
-            if datetime.strptime(tradMade[6], "%H:%M:%S") > datetime.strptime(ttm, "%H:%M:%S") + timedelta(minutes=int(interval)):
+            if datetime.strptime(tradMade[6], "%H:%M:%S") > datetime.strptime(ttm, "%H:%M:%S") + timedelta(minutes=int(interv)):
                 try:
                     timeDict[ttm] += [timeDict[ttm][0]/sum(timeDict[ttm]), timeDict[ttm][1]/sum(timeDict[ttm]), timeDict[ttm][2]/sum(timeDict[ttm])]
                 except(KeyError,ZeroDivisionError):
@@ -1626,6 +1707,7 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
      
     
     previous_stkName = sname
+    previous_interv = interv
     
     vwapCum(combined_df)
     PPPCum(combined_df) 
@@ -1851,8 +1933,9 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     )
     '''
     fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
+                      paper_bgcolor='#E5ECF6',
                       showlegend=False,
-                      height=850,
+                      height=880,
                       xaxis_rangeslider_visible=False,
                       xaxis=dict(range=[int(len(df)*0.95), len(df)]),
                       yaxis=dict(range=[min([i for i in combined_df['low'][int(len(df)*0.95):len(df)]]), max([i for i in combined_df['high'][int(len(df)*0.95):len(df)]])])) #showlegend=False
@@ -1862,14 +1945,14 @@ def update_graph_live(n_intervals, sname, stored_data, interval_time, previous_s
     if interval_time == initial_inter:
         interval_time = subsequent_inter
         
-    if stkName != previous_stkName:
+    if stkName != previous_stkName  or interv != previous_interv:
         interval_time = initial_inter
         
 
     # Show the chart
     #fig.show() 
     
-    return fig, stored_data, interval_time, previous_stkName#, previous_stkName
+    return fig, stored_data, interval_time, previous_stkName, previous_interv#, previous_stkName
 
 if __name__ == '__main__': 
     app.run_server(debug=False, host='0.0.0.0', port=8080)
