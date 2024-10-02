@@ -707,7 +707,7 @@ def update_graph_live(n_intervals, sname, interv, stored_data, interval_time, pr
         
     #AllTrades = [i for i in AllTrades if i[1] > 2]        
             
-    hs = historV2(df,50,{},AllTrades,[])
+    hs = historV2(df,100,{},AllTrades,[])
     
     va = valueAreaV1(hs[0])
     
