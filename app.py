@@ -1940,7 +1940,7 @@ def update_graph_live(n_intervals, sname, interv, stored_data, interval_time, pr
         row=3, col=1
     )
     '''
-    fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time() + ' ' + tpString ),
+    fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()) + ' ' + tpString ,
                       paper_bgcolor='#E5ECF6',
                       showlegend=False,
                       height=880,
