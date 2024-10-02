@@ -734,6 +734,14 @@ def update_graph_live(n_intervals, sname, interv, stored_data, interval_time, pr
     newwT = []
     for i in mTrade:
         newwT.append([i[0],i[1],i[2],i[5], i[4],i[3],i[6]])
+
+    tobuys =  sum([x[1] for x in [i for i in newwT[:200] if i[3] == 'B']])
+    tosells = sum([x[1] for x in [i for i in newwT[:200] if i[3] == 'A']])
+    
+    ratio = str(round(max(tosells,tobuys)/min(tosells,tobuys),3))
+    
+    tpString = ' (Buy:' + str(tobuys) + '('+str(round(tobuys/(tobuys+tosells),2))+') | '+ '(Sell:' + str(tosells) + '('+str(round(tosells/(tobuys+tosells),2))+'))  Ratio : '+str(ratio)
+    
     
     
     dtime = df['time'].dropna().values.tolist()
@@ -1932,7 +1940,7 @@ def update_graph_live(n_intervals, sname, interv, stored_data, interval_time, pr
         row=3, col=1
     )
     '''
-    fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()),
+    fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time() + ' ' + tpString ),
                       paper_bgcolor='#E5ECF6',
                       showlegend=False,
                       height=880,
