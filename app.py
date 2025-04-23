@@ -1,395 +1,199 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jun  6 15:02:22 2024
+Created on Tue Apr 22 15:24:13 2025
 
 @author: UOBASUB
 """
 
-
-import csv
+#import csv
 import io
 from datetime import datetime, timedelta, date, time
 import pandas as pd 
 import numpy as np
-import math
+#import math
 from google.cloud.storage import Blob
 from google.cloud import storage
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 np.seterr(divide='ignore', invalid='ignore')
 pd.options.mode.chained_assignment = None
-from scipy.signal import argrelextrema
-from scipy import signal
-from scipy.misc import derivative
-from scipy.interpolate import interp1d
+#from scipy.signal import argrelextrema
+#from scipy import signal
+#from scipy.misc import derivative
+#from scipy.interpolate import interp1d
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 import plotly.io as pio
 pio.renderers.default='browser'
 import bisect
-
-def ema(df):
-    df['30ema'] = df['close'].ewm(span=30, adjust=False).mean()
-    df['40ema'] = df['close'].ewm(span=40, adjust=False).mean()
-    df['28ema'] = df['close'].ewm(span=28, adjust=False).mean()
-    df['50ema'] = df['close'].ewm(span=50, adjust=False).mean()
-    df['100ema'] = df['close'].ewm(span=100, adjust=False).mean()
-    df['150ema'] = df['close'].ewm(span=150, adjust=False).mean()
-    df['200ema'] = df['close'].ewm(span=200, adjust=False).mean()
-    df['1ema'] = df['close'].ewm(span=1, adjust=False).mean()
-    df['3ema'] = df['close'].ewm(span=3, adjust=False).mean()
-    df['5ema'] = df['close'].ewm(span=5, adjust=False).mean()
-    df['6ema'] = df['close'].ewm(span=6, adjust=False).mean()
-    df['8ema'] = df['close'].ewm(span=8, adjust=False).mean()
-    df['12ema'] = df['close'].ewm(span=12, adjust=False).mean()
-    df['15ema'] = df['close'].ewm(span=15, adjust=False).mean()
-    df['20ema'] = df['close'].ewm(span=20, adjust=False).mean()
+#from collections import defaultdict
+import gcsfs
+import re
+from concurrent.futures import ThreadPoolExecutor  
+from io import StringIO  
+from scipy.stats import percentileofscore
 
 
-def Bbands(df):
-    df['BbandsMid'] = df['close'].rolling(20).mean()
-    df['BbandsUpp'] = df['close'].rolling(20).mean() + (df['close'].rolling(20).std() * 2)
-    df['BbandsLow'] = df['close'].rolling(20).mean() - (df['close'].rolling(20).std() * 2)
+def download_data(bucket_name, blob_name):
+    blob = Blob(blob_name, bucket_name)
+    return blob.download_as_text()   
 
-    #return [df['BbandsUpp'][len(df['BbandsUpp'])-1], df['BbandsLow'][len(df['BbandsLow'])-1]]
-
-
-def vwap(df):
-    v = df['volume'].values
-    h = df['high'].values
-    l = df['low'].values
-    # print(v)
-    df['vwap'] = np.cumsum(v*(h+l)/2) / np.cumsum(v)
-    #df['disVWAP'] = (abs(df['close'] - df['vwap']) / ((df['close'] + df['vwap']) / 2)) * 100
-    #df['disVWAPOpen'] = (abs(df['open'] - df['vwap']) / ((df['open'] + df['vwap']) / 2)) * 100
-    #df['disEMAtoVWAP'] = ((df['close'].ewm(span=12, adjust=False).mean() - df['vwap'])/df['vwap']) * 100
-
-    df['volumeSum'] = df['volume'].cumsum()
-    df['volume2Sum'] = (v*((h+l)/2)*((h+l)/2)).cumsum()
-    #df['myvwap'] = df['volume2Sum'] / df['volumeSum'] - df['vwap'].values * df['vwap']
-    #tp = (df['low'] + df['close'] + df['high']).div(3).values
-    # return df.assign(vwap=(tp * v).cumsum() / v.cumsum())
+# Function to extract the first date occurrence
+def extract_first_date(filename):
+    # Regex to extract the first date occurrence (_YYYY-MM-DD_)
+    date_pattern = re.compile(r"_(\d{4}-\d{2}-\d{2})_")
+    match = date_pattern.search(filename)  # Find the first match
+    return match.group(1) if match else "0000-00-00"  # Default for sorting safety
 
 
 
-def vwapCum(df):
-    v = df['volume'].values
-    h = df['high'].values
-    l = df['low'].values
-    # print(v)
-    df['vwapCum'] = np.cumsum(v*(h+l)/2) / np.cumsum(v)
-    df['volumeSumCum'] = df['volume'].cumsum()
-    df['volume2SumCum'] = (v*((h+l)/2)*((h+l)/2)).cumsum()
-    #df['disVWAP'] = (abs(df['close'] - df['vwap']) / ((df['close'] + df['vwap']) / 2)) * 100
-    #df['disVWAPOpen'] = (abs(df['open'] - df['vwap']) / ((df['open'] + df['vwap']) / 2)) * 100
-    #df['disEMAtoVWAP'] = ((df['close'].ewm(span=12, adjust=False).mean() - df['vwap'])/df['vwap']) * 100
+def historV2(df, num, quodict, trad:list=[], quot:list=[]):
+    trad_array = np.asarray(trad, dtype=object)  # Convert once, avoid reallocation
 
+    # **Sort trades by price (Much faster way)**
+    sorted_indices = np.argsort(trad_array[:, 0], kind='stable')  # Use stable sorting
+    sorted_trades = trad_array[sorted_indices]
 
+    # **Efficiently Extract Unique Prices and Sum Their Volumes**
+    unique_prices, index = np.unique(sorted_trades[:, 0], return_index=True)
+    summed_volumes = np.add.reduceat(sorted_trades[:, 1].astype(int), index)
 
-def sigma(df):
-    try:
-        val = df.volume2Sum / df.volumeSum - df.vwap * df.vwap
-    except(ZeroDivisionError):
-        val = df.volume2Sum / (df.volumeSum+0.000000000001) - df.vwap * df.vwap
-    return math.sqrt(val) if val >= 0 else val
+    # **Find Point of Control (POC) (Price with max volume)**
+    pocT = unique_prices[np.argmax(summed_volumes)]
 
+    # **Create histogram bins from unique prices instead of full data**
+    hist, bin_edges = np.histogram(unique_prices, bins=num)
 
-def sigmaCum(df):
-    try:
-        val = df.volume2SumCum / df.volumeSumCum - df.vwapCum * df.vwapCum
-    except(ZeroDivisionError):
-        val = df.volume2SumCum / (df.volumeSumCum+0.000000000001) - df.vwapCum * df.vwapCum
-    return math.sqrt(val) if val >= 0 else val
+    # **Preallocate output arrays (Avoid slow appends)**
+    cptemp = np.zeros((len(hist), 4), dtype=object)
 
+    # **Vectorized Bin Searching**
+    start_indices = np.searchsorted(unique_prices, bin_edges[:-1], side='left')
+    #end_indices = np.searchsorted(unique_prices, bin_edges[1:], side='right')
 
+    # **Process each bin using NumPy vectorized operations**
+    valid_indices = start_indices[start_indices < len(summed_volumes)]
 
-def PPP(df):
+    # **Compute sum of volumes in each bin**
+    bin_sums = np.zeros(len(hist), dtype=int)
+    bin_sums[:len(valid_indices)] = np.add.reduceat(summed_volumes, valid_indices)
 
-    df['STDEV_TV'] = df.apply(sigma, axis=1)
-    stdev_multiple_0 = 0.50
-    stdev_multiple_1 = 1
-    stdev_multiple_1_5 = 1.5
-    stdev_multiple_2 = 2.00
-    stdev_multiple_25 = 2.50
+    # **Assign bin data without looping**
+    cptemp[:, 0] = bin_edges[:-1]  # Start of bin
+    cptemp[:, 1] = bin_sums        # Summed volume in bin
+    cptemp[:, 2] = np.arange(len(hist))  # Index
+    cptemp[:, 3] = bin_edges[1:]   # End of bin
 
-    df['STDEV_0'] = df.vwap + stdev_multiple_0 * df['STDEV_TV']
-    df['STDEV_N0'] = df.vwap - stdev_multiple_0 * df['STDEV_TV']
+    return [cptemp.tolist(), pocT]
 
-    df['STDEV_1'] = df.vwap + stdev_multiple_1 * df['STDEV_TV']
-    df['STDEV_N1'] = df.vwap - stdev_multiple_1 * df['STDEV_TV']
-    
-    df['STDEV_15'] = df.vwap + stdev_multiple_1_5 * df['STDEV_TV']
-    df['STDEV_N15'] = df.vwap - stdev_multiple_1_5 * df['STDEV_TV']
+def valueAreaV3(lst):
+    # Ensure list is not empty
+    if not lst:
+        return [None, None, None]
 
-    df['STDEV_2'] = df.vwap + stdev_multiple_2 * df['STDEV_TV']
-    df['STDEV_N2'] = df.vwap - stdev_multiple_2 * df['STDEV_TV']
-    
-    df['STDEV_25'] = df.vwap + stdev_multiple_25 * df['STDEV_TV']
-    df['STDEV_N25'] = df.vwap - stdev_multiple_25 * df['STDEV_TV']
-
-def PPPCum(df):
-
-    df['STDEV_TVCum'] = df.apply(sigmaCum, axis=1)
-    stdev_multiple_0_25 = 0.25
-    stdev_multiple_0 = 0.50
-    stdev_multiple_0_75 = 0.75
-    stdev_multiple_1 = 1
-    stdev_multiple_1_25 = 1.25
-    stdev_multiple_1_5 = 1.5
-    stdev_multiple_1_75 = 1.75
-    stdev_multiple_2 = 2.00
-    stdev_multiple_2_25 = 2.25
-    stdev_multiple_25 = 2.50
-    
-    df['STDEV_025Cum'] = df.vwapCum + stdev_multiple_0_25 * df['STDEV_TVCum']
-    df['STDEV_N025Cum'] = df.vwapCum - stdev_multiple_0_25 * df['STDEV_TVCum']
-
-    df['STDEV_0Cum'] = df.vwapCum + stdev_multiple_0 * df['STDEV_TVCum']
-    df['STDEV_N0Cum'] = df.vwapCum - stdev_multiple_0 * df['STDEV_TVCum']
-    
-    df['STDEV_075Cum'] = df.vwapCum + stdev_multiple_0_75 * df['STDEV_TVCum']
-    df['STDEV_N075Cum'] = df.vwapCum - stdev_multiple_0_75 * df['STDEV_TVCum']
-
-    df['STDEV_1Cum'] = df.vwapCum + stdev_multiple_1 * df['STDEV_TVCum']
-    df['STDEV_N1Cum'] = df.vwapCum - stdev_multiple_1 * df['STDEV_TVCum']
-    
-    df['STDEV_125Cum'] = df.vwapCum + stdev_multiple_1_25 * df['STDEV_TVCum']
-    df['STDEV_N125Cum'] = df.vwapCum - stdev_multiple_1_25 * df['STDEV_TVCum']
-    
-    df['STDEV_15Cum'] = df.vwapCum + stdev_multiple_1_5 * df['STDEV_TVCum']
-    df['STDEV_N15Cum'] = df.vwapCum - stdev_multiple_1_5 * df['STDEV_TVCum']
-    
-    df['STDEV_175Cum'] = df.vwapCum + stdev_multiple_1_75 * df['STDEV_TVCum']
-    df['STDEV_N175Cum'] = df.vwapCum - stdev_multiple_1_75 * df['STDEV_TVCum']
-
-    df['STDEV_2Cum'] = df.vwapCum + stdev_multiple_2 * df['STDEV_TVCum']
-    df['STDEV_N2Cum'] = df.vwapCum - stdev_multiple_2 * df['STDEV_TVCum']
-    
-    df['STDEV_225Cum'] = df.vwapCum + stdev_multiple_2_25 * df['STDEV_TVCum']
-    df['STDEV_N225Cum'] = df.vwapCum - stdev_multiple_2_25 * df['STDEV_TVCum']
-    
-    df['STDEV_25Cum'] = df.vwapCum + stdev_multiple_25 * df['STDEV_TVCum']
-    df['STDEV_N25Cum'] = df.vwapCum - stdev_multiple_25 * df['STDEV_TVCum']
-
-
-def VMA(df):
-    df['vma'] = df['volume'].rolling(4).mean()
-      
-
-def historV1(df, num, quodict, trad:list=[], quot:list=[], rangt:int=1):
-    #trad = AllTrades
-    pzie = [(i[0],i[1]) for i in trad if i[1] >= rangt]
-    dct ={}
-    for i in pzie:
-        if i[0] not in dct:
-            dct[i[0]] =  i[1]
-        else:
-            dct[i[0]] +=  i[1]
-            
-    
-    pzie = [i for i in dct ]#  > 500 list(set(pzie))
-    
-    hist, bin_edges = np.histogram(pzie, bins=num)
-    
-    cptemp = []
-    zipList = []
-    cntt = 0
-    for i in range(len(hist)):
-        pziCount = 0
-        acount = 0
-        bcount = 0
-        ncount = 0
-        for x in trad:
-            if bin_edges[i] <= x[0] < bin_edges[i+1]:
-                pziCount += (x[1])
-                if x[4] == 'A':
-                    acount += (x[1])
-                elif x[4] == 'B':
-                    bcount += (x[1])
-                elif x[4] == 'N':
-                    ncount += (x[1])
-                
-        #if pziCount > 100:
-        cptemp.append([bin_edges[i],pziCount,cntt,bin_edges[i+1]])
-        zipList.append([acount,bcount,ncount])
-        cntt+=1
-        
-    for i in cptemp:
-        i+=countCandle(trad,[],i[0],i[3],df['name'][0],{})
-
-    for i in range(len(cptemp)):
-        cptemp[i] += zipList[i]
-        
-    
-    sortadlist = sorted(cptemp, key=lambda stock: float(stock[1]), reverse=True)
-    
-    return [cptemp,sortadlist] 
-
-
-def historV2(df, num, quodict, trad:list=[], quot:list=[]): #rangt:int=1
-    #trad = AllTrades
-    
-    pzie = [(i[0],i[1]) for i in trad] #rangt:int=1
-    dct ={}
-    for i in pzie:
-        if i[0] not in dct:
-            dct[i[0]] =  i[1]
-        else:
-            dct[i[0]] +=  i[1]
-            
-    
-    pzie = [i for i in dct ]#  > 500 list(set(pzie))
-    mTradek = sorted(trad, key=lambda d: d[0], reverse=False)
-    
-    
-    hist, bin_edges = np.histogram(pzie, bins=num)
-    
-    priceList = [i[0] for i in mTradek]
-
-    cptemp = []
-    zipList = []
-    cntt = 0
-    for i in range(len(hist)):
-        pziCount = 0
-        acount = 0
-        bcount = 0
-        ncount = 0
-        for x in mTradek[bisect.bisect_left(priceList, bin_edges[i]) :  bisect.bisect_left(priceList, bin_edges[i+1])]:
-            pziCount += (x[1])
-            if x[4] == 'A':
-                acount += (x[1])
-            elif x[4] == 'B':
-                bcount += (x[1])
-            elif x[4] == 'N':
-                ncount += (x[1])
-                
-        #if pziCount > 100:
-        cptemp.append([bin_edges[i],pziCount,cntt,bin_edges[i+1]])
-        zipList.append([acount,bcount,ncount])
-        cntt+=1
-        
-    for i in cptemp:
-        i+=countCandle(trad,[],i[0],i[3],df['name'][0],{})
-
-    for i in range(len(cptemp)):
-        cptemp[i] += zipList[i]
-        
-    
-    sortadlist = sorted(cptemp, key=lambda stock: float(stock[1]), reverse=True)
-    
-    return [cptemp,sortadlist]  
-
-
-def countCandle(trad,quot,num1,num2, stkName, quodict):
-    enum = ['Bid(SELL)','BelowBid(SELL)','Ask(BUY)','AboveAsk(BUY)','Between']
-    color = ['red','darkRed','green','darkGreen','black']
-
-   
-    lsr = splitHun(stkName,trad, quot, num1, num2, quodict)
-    ind = lsr.index(max(lsr))   #lsr[:4]
-    return [enum[ind],color[ind],lsr]
-
-
-def splitHun(stkName, trad, quot, num1, num2, quodict):
-    Bidd = 0
-    belowBid = 0
-    Askk = 0
-    aboveAsk = 0
-    Between = 1
-    
-    return [Bidd,belowBid,Askk,aboveAsk,Between]
- 
-
-def valueAreaV1(lst):
+    # Filter out entries with zero volume
     mkk = [i for i in lst if i[1] > 0]
-    if len(mkk) == 0:
-        mkk = hs[0]
-    for xm in range(len(mkk)):
-        mkk[xm][2] = xm
-        
-    pocIndex = sorted(mkk, key=lambda stock: float(stock[1]), reverse=True)[0][2]
-    sPercent = sum([i[1] for i in mkk]) * .70
-    pocVolume = mkk[mkk[pocIndex][2]][1]
-    #topIndex = pocIndex - 2
-    #dwnIndex = pocIndex + 2
-    topVol = 0
-    dwnVol = 0
-    total = pocVolume
-    #topBool1 = topBool2 = dwnBool1 = dwnBool2 =True
+    if not mkk:
+        mkk = lst
 
-    if 0 <= pocIndex - 1 and 0 <= pocIndex - 2:
-        topVol = mkk[mkk[pocIndex - 1][2]][1] + mkk[mkk[pocIndex - 2][2]][1]
-        topIndex = pocIndex - 2
-        #topBool2 = True
-    elif 0 <= pocIndex - 1 and 0 > pocIndex - 2:
-        topVol = mkk[mkk[pocIndex - 1][2]][1]
-        topIndex = pocIndex - 1
-        #topBool1 = True
-    else:
-        topVol = 0
-        topIndex = pocIndex
+    # Assign indices for tracking
+    for idx, item in enumerate(mkk):
+        item[2] = idx
 
-    if pocIndex + 1 < len(mkk) and pocIndex + 2 < len(mkk):
-        dwnVol = mkk[mkk[pocIndex + 1][2]][1] + mkk[mkk[pocIndex + 2][2]][1]
-        dwnIndex = pocIndex + 2
-        #dwnBool2 = True
-    elif pocIndex + 1 < len(mkk) and pocIndex + 2 >= len(mkk):
-        dwnVol = mkk[mkk[pocIndex + 1][2]][1]
-        dwnIndex = pocIndex + 1
-        #dwnBool1 = True
-    else:
-        dwnVol = 0
-        dwnIndex = pocIndex
+    # Total volume in mkk
+    total_volume = sum([i[1] for i in mkk])
+    if total_volume == 0:
+        return [None, None, None]
 
-    # print(pocIndex,topVol,dwnVol,topIndex,dwnIndex)
-    while sPercent > total:
-        if topVol > dwnVol:
-            total += topVol
-            if total > sPercent:
-                break
+    # Identify POC (Point of Control) by maximum volume
+    poc_item = max(mkk, key=lambda x: x[1])
+    pocIndex = poc_item[2]
+    sPercent = total_volume * 0.70  # 70% of total volume
+    accumulated_volume = poc_item[1]  # Start with POC volume
 
-            if 0 <= topIndex - 1 and 0 <= topIndex - 2:
-                topVol = mkk[mkk[topIndex - 1][2]][1] + \
-                    mkk[mkk[topIndex - 2][2]][1]
-                topIndex = topIndex - 2
+    # Initialize Value Area boundaries
+    topIndex, dwnIndex = pocIndex, pocIndex
 
-            elif 0 <= topIndex - 1 and 0 > topIndex - 2:
-                topVol = mkk[mkk[topIndex - 1][2]][1]
-                topIndex = topIndex - 1
+    # Expand the value area until 70% of volume is captured
+    while accumulated_volume < sPercent:
+        topVol = mkk[topIndex - 1][1] if topIndex > 0 else 0
+        dwnVol = mkk[dwnIndex + 1][1] if dwnIndex < len(mkk) - 1 else 0
 
-            if topIndex == 0:
-                topVol = 0
-
+        # Add the larger volume to the total and adjust indices
+        if topVol >= dwnVol:
+            if topIndex > 0:
+                topIndex -= 1
+                accumulated_volume += topVol
         else:
-            total += dwnVol
+            if dwnIndex < len(mkk) - 1:
+                dwnIndex += 1
+                accumulated_volume += dwnVol
 
-            if total > sPercent:
-                break
-
-            if dwnIndex + 1 < len(mkk) and dwnIndex + 2 < len(mkk):
-                dwnVol = mkk[mkk[dwnIndex + 1][2]][1] + \
-                    mkk[mkk[dwnIndex + 2][2]][1]
-                dwnIndex = dwnIndex + 2
-
-            elif dwnIndex + 1 < len(mkk) and dwnIndex + 2 >= len(mkk):
-                dwnVol = mkk[mkk[dwnIndex + 1][2]][1]
-                dwnIndex = dwnIndex + 1
-
-            if dwnIndex == len(mkk)-1:
-                dwnVol = 0
-
-        if dwnIndex == len(mkk)-1 and topIndex == 0:
+        # Break if boundaries are fully expanded
+        if topIndex == 0 and dwnIndex == len(mkk) - 1:
             break
-        elif topIndex == 0:
-            topVol = 0
-        elif dwnIndex == len(mkk)-1:
-            dwnVol = 0
 
-        # print(total,sPercent,topIndex,dwnIndex,topVol,dwnVol)
-        # time.sleep(3)
+    # Return Value Area Low, Value Area High, and POC
+    return [mkk[topIndex][0], mkk[dwnIndex][0], poc_item[0]]
 
-    return [mkk[topIndex][0], mkk[dwnIndex][0], mkk[pocIndex][0]]
 
+def combine_histogram_data(hist1, hist2):
+    # Extract the first list and POC from each set
+    hist1_data, poc1 = hist1
+    hist2_data, poc2 = hist2
+    
+    # Extract the price range from both histograms
+    min_price = min(hist1_data[0][0], hist2_data[0][0])
+    max_price = max(hist1_data[-1][3], hist2_data[-1][3])
+    
+    # Create 100 evenly spaced bins over the combined range
+    bin_width = (max_price - min_price) / 100
+    new_bins = []
+    
+    for i in range(100):
+        start_price = min_price + i * bin_width
+        end_price = min_price + (i + 1) * bin_width
+        
+        # Initialize the new bin with zero volume
+        new_bins.append([start_price, 0, i, end_price])
+    
+    # Function to distribute volume from one histogram to new bins
+    def distribute_volumes(hist_data):
+        for bin_data in hist_data:
+            bin_start = bin_data[0]
+            bin_end = bin_data[3]
+            bin_volume = bin_data[1]
+            
+            # Find the overlapping new bins and distribute volume proportionally
+            for i, new_bin in enumerate(new_bins):
+                new_start = new_bin[0]
+                new_end = new_bin[3]
+                
+                # Check for overlap
+                overlap_start = max(bin_start, new_start)
+                overlap_end = min(bin_end, new_end)
+                
+                if overlap_start < overlap_end:
+                    # Calculate the proportion of the original bin that overlaps with the new bin
+                    overlap_width = overlap_end - overlap_start
+                    original_width = bin_end - bin_start
+                    proportion = overlap_width / original_width
+                    
+                    # Add proportional volume to the new bin
+                    new_bins[i][1] += bin_volume * proportion
+    
+    # Distribute volumes from both histograms
+    distribute_volumes(hist1_data)
+    distribute_volumes(hist2_data)
+    
+    # Round volumes to integers
+    for bin_data in new_bins:
+        bin_data[1] = int(round(bin_data[1]))
+    
+    # Calculate new POC
+    new_poc = new_bins[max(range(len(new_bins)), key=lambda i: new_bins[i][1])][0]
+    
+    return [new_bins, new_poc]
 
 
 def find_clusters(numbers, threshold):
@@ -411,108 +215,35 @@ def find_clusters(numbers, threshold):
     
     return clusters
 
-def calculate_bollinger_bands(df):
-   df['20sma'] = df['close'].rolling(window=20).mean()
-   df['stddev'] = df['close'].rolling(window=20).std()
-   df['lower_band'] = df['20sma'] - (2 * df['stddev'])
-   df['upper_band'] = df['20sma'] + (2 * df['stddev'])
-
-def calculate_keltner_channels(df):
-   df['TR'] = abs(df['high'] - df['low'])
-   df['ATR'] = df['TR'].rolling(window=20).mean()
-
-   df['lower_keltner'] = df['20sma'] - (df['ATR'] * 1.5)
-   df['upper_keltner'] = df['20sma'] + (df['ATR'] * 1.5)
-
-def calculate_ttm_squeeze(df, n=13):
-    '''
-    df['20sma'] = df['close'].rolling(window=20).mean()
-    highest = df['high'].rolling(window = 20).max()
-    lowest = df['low'].rolling(window = 20).min()
-    m1 = (highest + lowest)/2 
-    df['Momentum'] = (df['close'] - (m1 + df['20sma'])/2)
-    fit_y = np.array(range(0,20))
-    df['Momentum'] = df['Momentum'].rolling(window = 20).apply(lambda x: np.polyfit(fit_y, x, 1)[0] * (20-1) + np.polyfit(fit_y, x, 1)[1], raw=True)
-    
-    '''
-    #calculate_bollinger_bands(df)
-    #calculate_keltner_channels(df)
-    #df['Squeeze'] = (df['upper_band'] - df['lower_band']) - (df['upper_keltner'] - df['lower_keltner'])
-    #df['Squeeze_On'] = df['Squeeze'] < 0
-    #df['Momentum'] = df['close'] - df['close'].shift(20)
-    df['20sma'] = df['close'].rolling(window=n).mean()
-    highest = df['high'].rolling(window = n).max()
-    lowest = df['low'].rolling(window = n).min()
-    m1 = (highest + lowest)/2 
-    df['Momentum'] = (df['close'] - (m1 + df['20sma'])/2)
-    fit_y = np.array(range(0,n))
-    df['Momentum'] = df['Momentum'].rolling(window = n).apply(lambda x: np.polyfit(fit_y, x, 1)[0] * (n-1) + np.polyfit(fit_y, x, 1)[1], raw=True)
-    
+symbolNumList =  ['4916', '42005804', '42003068', '134373', '287', '42009162', '42007178', '42008377']
+symbolNameList = ['ES', 'NQ', 'YM','CL', 'GC', 'RTY', 'MBT', 'MET']
 
 
-#symbolNumList = ['118', '4358', '42012334', '392826', '393','163699', '935', '11232']
-#symbolNameList = ['ES', 'NQ', 'YM','CL', 'GC', 'HG', 'NG', 'RTY']
+intList = [str(i) for i in range(3,70)]
 
-symbolNumList = ['5002', '42288528', '42002868', '615689', '1551','19222', '899', '42001620', '4127886', '42272', '57969', '5556', '52126', '42008173', '29307', '121331', '148071']
-symbolNameList = ['ES', 'NQ', 'YM','CL', 'GC', 'HG', 'NG', 'RTY', 'PL', '6E', '6J', 'SI', '6A', '6N', '6B', 'MBT', 'NIY']
-stored_data = None
-intList = ['1','2','3','4','5','6','10','15','20','30']
+#vaildClust = [str(i) for i in range(0,200)]
 
-def has_time_passed(checkTime):
-    current_time = datetime.utcnow()
-    return current_time > checkTime
+#vaildTPO = [str(i) for i in range(1,500)]
 
-checkTime = datetime.combine(datetime.utcnow().date(), time(22, 0, 0))
+#covarianceList = [str(round(i, 2)) for i in [x * 0.01 for x in range(1, 1000)]]
 
-gclient = storage.Client(project="stockapp-401615")
-bucket = gclient.get_bucket("stockapp-storage")
+#gclient = storage.Client(project="stockapp-401615")
+#bucket = gclient.get_bucket("stockapp-storage")
 
-styles = {
-    'main_container': {
-        'display': 'flex',
-        'flexDirection': 'row',  # Align items in a row
-        'justifyContent': 'space-around',  # Space between items
-        'flexWrap': 'wrap',  # Wrap items if screen is too small
-        #'marginTop': '20px',
-        'background': '#E5ECF6',  # Soft light blue background
-        'padding': '20px',
-        #'borderRadius': '10px'  # Optional: adds rounded corners for better aesthetics
-    },
-    'sub_container': {
-        'display': 'flex',
-        'flexDirection': 'column',  # Align items in a column within each sub container
-        'alignItems': 'center',
-        'margin': '10px'
-    },
-    'input': {
-        'width': '150px',
-        'height': '35px',
-        'marginBottom': '10px',
-        'borderRadius': '5px',
-        'border': '1px solid #ddd',
-        'padding': '0 10px'
-    },
-    'button': {
-        'width': '100px',
-        'height': '35px',
-        'borderRadius': '10px',
-        'border': 'none',
-        'color': 'white',
-        'background': '#333333',  # Changed to a darker blue color
-        'cursor': 'pointer'
-    },
-    'label': {
-        'textAlign': 'center'
-    }
-}
+# Initialize Google Cloud Storage client
+client = storage.Client()
+bucket_name = "stockapp-storage"
+prefix = "oldData/NQ"  # Filter files in 'oldData/' folder containing "NQ"
+bucket = client.bucket(bucket_name)
 
+
+
+#from google.api_core.exceptions import NotFound
 from dash import Dash, dcc, html, Input, Output, callback, State
-initial_inter = 600000#60000
-subsequent_inter = 120000 
+initial_inter = 1800000  # Initial interval #210000#250000#80001
+subsequent_inter = 700000  # Subsequent interval
 app = Dash()
-
-
-
+app.title = "EnVisage"
 app.layout = html.Div([
     
     dcc.Graph(id='graph', config={'modeBarButtonsToAdd': ['drawline']}),
@@ -520,32 +251,30 @@ app.layout = html.Div([
         id='interval',
         interval=initial_inter,
         n_intervals=0,
-    ),
+      ),
+
+    
 
     html.Div([
         html.Div([
-            dcc.Input(id='input-on-submit', type='text', style=styles['input']),
-            html.Button('Submit', id='submit-val', n_clicks=0, style=styles['button']),
-            html.Div(id='container-button-basic', children="Enter a symbol from 'ES', 'NQ', 'YM', 'CL', 'GC', 'HG', 'NG', 'RTY'", style=styles['label']),
-        ], style=styles['sub_container']),
+            dcc.Input(id='input-on-submit', type='text', className="input-field"),
+            html.Button('Submit', id='submit-val', n_clicks=0, className="submit-button"),
+            html.Div(id='container-button-basic', children="Enter a symbol from ES, NQ", className="label-text"),
+        ], className="sub-container"),
         dcc.Store(id='stkName-value'),
-        
+
         html.Div([
-            dcc.Input(id='input-on-interv', type='text', style=styles['input']),
-            html.Button('Submit', id='submit-interv', n_clicks=0, style=styles['button']),
-            html.Div(id='interv-button-basic',children="Enter interval from 5, 10, 15, 30", style=styles['label']),
-        ], style=styles['sub_container']),
+            dcc.Input(id='input-on-interv', type='text', className="input-field"),
+            html.Button('Submit', id='submit-interv', n_clicks=0, className="submit-button"),
+            html.Div(id='interv-button-basic', children="Enter interval from 3-30, Default 10 mins", className="label-text"),
+        ], className="sub-container"),
         dcc.Store(id='interv-value'),
+    ], className="main-container"),
 
-
-    ], style=styles['main_container']),
-    
-    
     dcc.Store(id='data-store'),
     dcc.Store(id='previous-interv'),
     dcc.Store(id='previous-stkName'),
     dcc.Store(id='interval-time', data=initial_inter),
-  
 ])
 
 @callback(
@@ -562,10 +291,8 @@ def update_output(n_clicks, value):
     if value in symbolNameList:
         print('The input symbol was "{}" '.format(value))
         return str(value).upper(), str(value).upper()
-    
-    
     else:
-        return 'The input symbol was '+str(value)+" is not accepted please try different symbol from  |'ES', 'NQ', 'YM','CL', 'GC', 'HG', 'NG'|  ", 'The input symbol was '+str(value)+" is not accepted please try different symbol  |'ESH4' 'NQH4' 'CLG4' 'GCG4' 'NGG4' 'HGH4' 'YMH4' 'BTCZ3' 'RTYH4'|  "
+        return 'The input symbol '+str(value)+" is not accepted please try different symbol from  |'ES', 'NQ'|", 'The input symbol was '+str(value)+" is not accepted please try different symbol  |'ESH4' 'NQH4' 'CLG4' 'GCG4' 'NGG4' 'HGH4' 'YMH4' 'BTCZ3' 'RTYH4'|  "
 
 @callback(
     Output('interv-value', 'data'),
@@ -584,1394 +311,759 @@ def update_interval(n_clicks, value):
         return 'The input interval '+str(value)+" is not accepted please try different interval from  |'1' '2' '3' '5' '10' '15'|", 'The input interval '+str(value)+" is not accepted please try different interval from  |'1' '2' '3' '5' '10' '15'|"
 
 
-@callback([Output('graph', 'figure'),
-           Output('data-store', 'data'),
-           Output('interval', 'interval'),
-           Output('previous-stkName', 'data'),
-           Output('previous-interv', 'data'),],#Output('previous-stkName', 'data')
-          Input('interval', 'n_intervals'),
-          [State('stkName-value', 'data'),
-           State('interv-value', 'data'),
-           State('data-store', 'data'),
-           State('interval-time', 'data'),
-           State('previous-stkName', 'data'),
-           State('previous-interv', 'data'),])#State('previous-stkName', 'data')
 
+@callback(
+    [Output('data-store', 'data'),
+        Output('graph', 'figure'),
+        Output('previous-stkName', 'data'),
+        Output('previous-interv', 'data'),
+        Output('interval', 'interval')],
+    [Input('interval', 'n_intervals')], 
+    [State('stkName-value', 'data'),
+        State('interv-value', 'data'),
+        State('data-store', 'data'),
+        State('previous-stkName', 'data'),
+        State('previous-interv', 'data'),
+        State('interval-time', 'data'),
+        
+    ],
+)
 
+def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName, previous_interv, interval_time): #interv
     
-
-
-def update_graph_live(n_intervals, sname, interv, stored_data, interval_time, previous_stkName, previous_interv): #,previous_stkName
-    print('inFunction')	
+    #print(sname, interv, stored_data, previous_stkName)
+    #print(interv)
 
     if sname in symbolNameList:
         stkName = sname
-        symbolNum = symbolNumList[symbolNameList.index(stkName)] 
+        symbolNum = symbolNumList[symbolNameList.index(stkName)]   
     else:
-        stkName = 'NQ'  
-        sname = 'NQ' 
+        stkName = 'NQ' 
+        sname = 'NQ'
         symbolNum = symbolNumList[symbolNameList.index(stkName)]
         
-    
     if interv not in intList:
-        interv = '15'
+        interv = '60'
         
+    #clustNum = '20'
         
-    if stkName != previous_stkName or interv != previous_interv:
+    #tpoNum = '500'
+
+
+    
+        
+    if sname != previous_stkName or interv != previous_interv:
         stored_data = None
-
     
-    blob = Blob('FuturesOHLC'+str(symbolNum), bucket) 
-    FuturesOHLC = blob.download_as_text()
         
     
-    csv_reader  = csv.reader(io.StringIO(FuturesOHLC))
-    
-    csv_rows = []
-    for row in csv_reader:
-        csv_rows.append(row)
-        
-    
-    
-    aggs = [ ]  
-    newOHLC = [i for i in csv_rows]
-    
-    for i in newOHLC:
-        hourss = datetime.fromtimestamp(int(int(i[0])// 1000000000)).hour
-        if hourss < 10:
-            hourss = '0'+str(hourss)
-        minss = datetime.fromtimestamp(int(int(i[0])// 1000000000)).minute
-        if minss < 10:
-            minss = '0'+str(minss)
-        opttimeStamp = str(hourss) + ':' + str(minss) + ':00'
-        aggs.append([int(i[2])/1e9, int(i[3])/1e9, int(i[4])/1e9, int(i[5])/1e9, int(i[6]), opttimeStamp, int(i[0]), int(i[1])])
-        
-            
-    newAggs = []
-    for i in aggs:
-        if i not in newAggs:
-            newAggs.append(i)
-            
-          
-    df = pd.DataFrame(newAggs, columns = ['open', 'high', 'low', 'close', 'volume', 'time', 'timestamp', 'name',])
-    
-    df['strTime'] = df['timestamp'].apply(lambda x: pd.Timestamp(int(x) // 10**9, unit='s', tz='EST') )
-    
-    df.set_index('strTime', inplace=True)
-    df['volume'] = pd.to_numeric(df['volume'], downcast='integer')
-    df_resampled = df.resample(interv+'T').agg({
-        'timestamp': 'first',
-        'name': 'last',
-        'open': 'first',
-        'high': 'max',
-        'low': 'min',
-        'close': 'last',
-        'time': 'first',
-        'volume': 'sum'
-    })
-    
-    df_resampled.reset_index(drop=True, inplace=True)
-    
-    df = df_resampled
-    df.dropna(inplace=True)
-    df.reset_index(drop=True, inplace=True) 
-    
-    vwap(df)
-    ema(df)
-    PPP(df)
-    #Bbands(df)
-    
-    
-    blob = Blob('FuturesTrades'+str(symbolNum), bucket) 
-    FuturesTrades = blob.download_as_text()
-    
-    
-    csv_reader  = csv.reader(io.StringIO(FuturesTrades))
-    
-    csv_rows = []
-    for row in csv_reader:
-        csv_rows.append(row)
-        
-    
-    #STrades = [i for i in csv_rows]
-    AllTrades = []
-    for i in csv_rows:
-        hourss = datetime.fromtimestamp(int(int(i[0])// 1000000000)).hour
-        if hourss < 10:
-            hourss = '0'+str(hourss)
-        minss = datetime.fromtimestamp(int(int(i[0])// 1000000000)).minute
-        if minss < 10:
-            minss = '0'+str(minss)
-        opttimeStamp = str(hourss) + ':' + str(minss) + ':00'
-        AllTrades.append([int(i[1])/1e9, int(i[2]), int(i[0]), 0, i[3], opttimeStamp])
-        
-    #AllTrades = [i for i in AllTrades if i[1] > 2]        
-            
-    hs = historV2(df,100,{},AllTrades,[])
-    
-    va = valueAreaV1(hs[0])
-    
-    x = np.array([i for i in range(len(df))])
-    y = np.array([i for i in df['40ema']])
-    
-    
-    
-    # Simple interpolation of x and y
-    f = interp1d(x, y)
-    x_fake = np.arange(0.1, len(df)-1, 1)
-    
-    # derivative of y with respect to x
-    df_dx = derivative(f, x_fake, dx=1e-6)
-    df_dx = np.append(df_dx, df_dx[len(df_dx)-1])
-    
-    mTrade = [i for i in AllTrades]
-    
-     
-    mTrade = sorted(mTrade, key=lambda d: d[1], reverse=True)
-    
-    [mTrade[i].insert(4,i) for i in range(len(mTrade))] 
-    
-    newwT = []
-    for i in mTrade:
-        newwT.append([i[0],i[1],i[2],i[5], i[4],i[3],i[6]])
-
-    tobuys =  sum([x[1] for x in [i for i in newwT[:200] if i[3] == 'B']])
-    tosells = sum([x[1] for x in [i for i in newwT[:200] if i[3] == 'A']])
-    
-    ratio = str(round(max(tosells,tobuys)/min(tosells,tobuys),3))
-    
-    tpString = ' (Buy:' + str(tobuys) + '('+str(round(tobuys/(tobuys+tosells),2))+') | '+ '(Sell:' + str(tosells) + '('+str(round(tosells/(tobuys+tosells),2))+'))  Ratio : '+str(ratio)
-    
-    
-    
-    dtime = df['time'].dropna().values.tolist()
-    dtimeEpoch = df['timestamp'].dropna().values.tolist()
-    
-    
-    tempTrades = [i for i in AllTrades]
-    tempTrades = sorted(tempTrades, key=lambda d: d[6], reverse=False) 
-    tradeTimes = [i[6] for i in tempTrades]
-    
-    timeDict = {}
-    for ttm in dtime:
-        for tradMade in tempTrades[bisect.bisect_left(tradeTimes, ttm):]:
-            if datetime.strptime(tradMade[6], "%H:%M:%S") > datetime.strptime(ttm, "%H:%M:%S") + timedelta(minutes=int(interv)):
-                try:
-                    timeDict[ttm] += [timeDict[ttm][0]/sum(timeDict[ttm]), timeDict[ttm][1]/sum(timeDict[ttm]), timeDict[ttm][2]/sum(timeDict[ttm])]
-                except(KeyError,ZeroDivisionError):
-                    timeDict[ttm] = [0,0,0]
-                break
-            
-            if ttm not in timeDict:
-                timeDict[ttm] = [0,0,0]
-            if ttm in timeDict:
-                if tradMade[5] == 'B':
-                    timeDict[ttm][0] += tradMade[1]#tradMade[0] * tradMade[1]
-                elif tradMade[5] == 'A':
-                    timeDict[ttm][1] += tradMade[1]#tradMade[0] * tradMade[1] 
-                elif tradMade[5] == 'N':
-                    timeDict[ttm][2] += tradMade[1]#tradMade[0] * tradMade[1] 
-                
-    
-    for i in timeDict:
-        if len(timeDict[i]) == 3:
-            try:
-                timeDict[i] += [timeDict[i][0]/sum(timeDict[i]), timeDict[i][1]/sum(timeDict[i]), timeDict[i][2]/sum(timeDict[i])]
-            except(ZeroDivisionError,KeyError):
-                timeDict[i] += [0,0,0]
-    
-    
-    timeFrame = [[i,'']+timeDict[i] for i in timeDict]
-    
-    for i in range(len(timeFrame)):
-        timeFrame[i].append(dtimeEpoch[i])
-        
-    
-    #df['superTrend'] = ta.supertrend(df['high'], df['low'], df['close'], length=2, multiplier=1.5)['SUPERTd_2_1.5']
-    #df['superTrend'][df['superTrend'] < 0] = 0
-    
-    blob = Blob('PrevDay', bucket) 
-    PrevDay = blob.download_as_text()
-        
-    
-    csv_reader  = csv.reader(io.StringIO(PrevDay))
-    
-    csv_rows = []
-    for row in csv_reader:
-        csv_rows.append(row)
-
-    try:
-            
-        previousDay = [csv_rows[[i[4] for i in csv_rows].index(symbolNum)][0] ,csv_rows[[i[4] for i in csv_rows].index(symbolNum)][1] ,csv_rows[[i[4] for i in csv_rows].index(symbolNum)][2]]
-        
-        df['prevDayLVA'] = [float(previousDay[0])]*len(df['time'])
-        df['prevDayHVA'] = [float(previousDay[1])]*len(df['time'])
-        df['prevDayPOC'] = [float(previousDay[2])]*len(df['time'])
-    except(ValueError):
-        pass
-    '''
-    ----------------------------------------------------------------
-    '''
-    
-    
-    
-    df['buyCount'] = pd.Series([i[2] for i in timeFrame])
-    df['sellCount'] = pd.Series([i[3] for i in timeFrame])
-    
-    df['buyDecimal'] = pd.Series([i[5] for i in timeFrame])
-    df['sellDecimal'] = pd.Series([i[6] for i in timeFrame])
-    
-    df['vwapAvg'] = df['vwap'].cumsum() / (df.index + 1)
-    df['uppervwapAvg'] = df['STDEV_25'].cumsum() / (df.index + 1)
-    df['lowervwapAvg'] = df['STDEV_N25'].cumsum() / (df.index + 1)
-    
-    df['derivative'] = df_dx
-    
-    df['buySellDif'] = pd.Series([i[2]-i[3] for i in timeFrame])
-    
-    #tradeTimes = [i[6] for i in AllTrades][::-1]
     if stored_data is not None:
-        stored_data = pd.DataFrame(stored_data)
-        lastTime = stored_data['time'][len(stored_data)-1]
-        lastIndex = df.index[df['time'] == lastTime].tolist()[0]
-        df = df.iloc[lastIndex:]
-        df = df.reset_index()
-        df = df.drop(columns=['index'])
-        
-        print('NotNewStroed')
-        epochTimes = [i[2] for i in AllTrades]
-        vplist = []
-        valist = []
-        tpo = []
-        clusterList = []
-        
-        for i in range(len(df['time'])-1):
-            hs = historV2(df[:i+1],50,{},AllTrades[:bisect.bisect_left(epochTimes, int(df['timestamp'][i+1]))],[])
+        print('NotNew')
+        #combined_df = pd.DataFrame(stored_data['df'], columns=[0,1,2,3,4,5,6,7,8,9,10,11])
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            #if sname != previous_stkName:
+            # Download everything when stock name changes
+            futures = [
+                executor.submit(download_data, bucket, 'FuturesOHLC' + str(symbolNum)),
+                executor.submit(download_data, bucket, 'FuturesTrades' + str(symbolNum)),]
+                #executor.submit(download_daily_data, bucket, stkName)]
+            
+            FuturesOHLC, FuturesTrades = [future.result() for future in futures] #, prevDf
 
+
+        # Process data with pandas directly
+        FuturesOHLC = pd.read_csv(io.StringIO(FuturesOHLC), header=None)
+        FuturesTrades = pd.read_csv(io.StringIO(FuturesTrades), header=None)
         
-            vplist.append([[xx[0], xx[3], xx[1], xx[7], xx[8]] for xx in hs[0]])
-            valist.append(valueAreaV1(hs[0]))
-            
-            mTrade = [i for i in AllTrades[:bisect.bisect_left(epochTimes, int(df['timestamp'][i+1]))]]  #AllTrades[:(len(tradeTimes) - 1 - tradeTimes.index(df['time'][i+1])) +1]
-            
-             
-            mTrade = sorted(mTrade, key=lambda d: d[1], reverse=True)
-            
-            for tdd in range(len(mTrade)):
-                mTrade[tdd][4] = tdd
                 
-            #[mTrade[i].insert(4,i) for i in range(len(mTrade))] 
-            
-            newwT = []
-            for x in mTrade[:100]:
-                newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], stored_data['timestamp'].searchsorted(x[2])-1])
                 
+        aggs = [ ] 
+        for row in FuturesOHLC.itertuples(index=False):
+            # Extract values from the row, where row[0] corresponds to the first column, row[1] to the second, etc.
+            hourss = datetime.fromtimestamp(int(row[0]) // 1000000000).hour
+            hourss = f"{hourss:02d}"  # Ensure it's a two-digit string
+            minss = datetime.fromtimestamp(int(row[0]) // 1000000000).minute
+            minss = f"{minss:02d}"  # Ensure it's a two-digit string
             
-                
-            tpo.append([[i[0], i[1], i[2], i[3], i[4], i[6], i[7]] for i in newwT[:100]])
+            # Construct the time string
+            opttimeStamp = f"{hourss}:{minss}:00"
             
-            data = [i[0] for i in newwT[:100]]
-            data.sort(reverse=True)
-            differences = [abs(data[i+1] - data[i]) for i in range(len(data) - 1)]
-            try:
-                average_difference = sum(differences) / len(differences)
-                cdata = find_clusters(data, average_difference)
-                clust = [i for i in cdata if len(i) >= 5]
-                clusterList.append(clust)
-            except(ZeroDivisionError):
-                clusterList.append([])
-            #break
-        else:
-            hs = historV2(df,50,{},AllTrades,[])
-            vplist.append([[xx[0], xx[3], xx[1], xx[7], xx[8]] for xx in hs[0]])
-            valist.append(valueAreaV1(hs[0]))
+            # Append the transformed row data to the aggs list
+            aggs.append([
+                row[2] / 1e9,  # Convert the value at the third column (open)
+                row[3] / 1e9,  # Convert the value at the fourth column (high)
+                row[4] / 1e9,  # Convert the value at the fifth column (low)
+                row[5] / 1e9,  # Convert the value at the sixth column (close)
+                int(row[6]),   # Volume
+                opttimeStamp,  # The formatted timestamp
+                int(row[0]),   # Original timestamp
+                int(row[1])    # Additional identifier or name
+            ])
+        
+        df2 = pd.DataFrame(aggs, columns = ['open', 'high', 'low', 'close', 'volume', 'time', 'timestamp', 'name',])
             
-            mTrade = [i for i in AllTrades]
+        df2['strTime'] = df2['timestamp'].apply(lambda x: pd.Timestamp(int(x) // 10**9, unit='s', tz='EST') )
+        
+        df2.set_index('strTime', inplace=True)
+        df2['volume'] = pd.to_numeric(df2['volume'], downcast='integer')
+        df_resampled2 = df2.resample(interv+'min').agg({
+            'timestamp': 'first',
+            'name': 'last',
+            'open': 'first',
+            'high': 'max',
+            'low': 'min',
+            'close': 'last',
+            'time': 'first',
+            'volume': 'sum'
+        })
+        
+        df_resampled2.reset_index(drop=True, inplace=True)
+        df_resampled2.insert(0, "index_count", df_resampled2.index)
+        df_resampled2.dropna(inplace=True)
+        df_resampled2.reset_index(drop=True, inplace=True)
+        
+        timestamps = FuturesTrades.iloc[:, 0].values
             
-             
-            mTrade = sorted(mTrade, key=lambda d: d[1], reverse=True)
+        # Convert timestamps and extract hours and minutes vectorized
+        seconds_timestamps = timestamps // 1000000000
+        dt_array = np.array([datetime.fromtimestamp(ts) for ts in seconds_timestamps])
+
+        # Format hours and minutes
+        hours = np.array([f"{dt.hour:02d}" for dt in dt_array])
+        minutes = np.array([f"{dt.minute:02d}" for dt in dt_array])
+
+        # Create formatted timestamps
+        opt_timestamps = np.array([f"{h}:{m}:00" for h, m in zip(hours, minutes)])
+
+        # Create indices array
+        indices = np.arange(len(timestamps))
+
+        # Create the AllTrades array efficiently
+        AllTrades = np.column_stack([
+            FuturesTrades.iloc[:, 1].values / 1e9,  # Scale by 1e9
+            FuturesTrades.iloc[:, 2].values,
+            timestamps,
+            np.zeros(len(timestamps), dtype=int),
+            indices,
+            FuturesTrades.iloc[:, 3].values,
+            opt_timestamps
+        ])
+        
+        
+        combined_trades = pd.concat([pd.DataFrame(stored_data['trades'], columns=['0','1','2','3','4','5','6']), pd.DataFrame(AllTrades, columns=['0','1','2','3','4','5','6'])], ignore_index=True)
+
+
+        dtimeEpoch_np = np.array(df_resampled2['timestamp'].dropna().values)
+        dtime_np = np.array(df_resampled2['time'].dropna().values)
+        tradeEpoch_np = np.array([i[2] for i in AllTrades])  # Extract timestamp from trades
+
+        # Find the nearest tradeEpoch index using NumPy vectorization
+        indices = np.searchsorted(tradeEpoch_np, dtimeEpoch_np, side='left')
+
+        # Create `make` list using NumPy
+        make = np.column_stack((dtimeEpoch_np, dtime_np, indices)).tolist()
+
+        # Faster dictionary initialization using dictionary comprehension
+        timeDict = {dtime_np[i]: [0, 0, 0] for i in range(len(dtime_np))}
+
+        # Initialize troPerCandle and footPrint as empty lists
+        troPerCandle = []
+        #footPrint = []
+
+        all_trades_np = np.array(AllTrades, dtype=object)
+
+        for tr in range(len(make)):
+            start_idx = make[tr][2]
+            end_idx = make[tr+1][2] if tr+1 < len(make) else len(AllTrades)
+
+            # Get trades for this time window
+            tempList = all_trades_np[start_idx:end_idx]
+
+            # Extract prices for binning
+            if len(tempList) > 0:
+
+                # Store top 100 largest trades (fast NumPy sorting)
+                sorted_trades = tempList[np.argsort(tempList[:, 1].astype(int))][-100:].tolist()
+                troPerCandle.append([make[tr][1], sorted_trades])
+
+                # Aggregate buy/sell/neutral trade volumes
+                for row in tempList:
+                    if row[5] == "B":
+                        timeDict[make[tr][1]][0] += row[1]
+                    elif row[5] == "A":
+                        timeDict[make[tr][1]][1] += row[1]
+                    elif row[5] == "N":
+                        timeDict[make[tr][1]][2] += row[1]
+                        
+        timeDict_np = np.array(list(timeDict.values()))
+        sums = timeDict_np.sum(axis=1)
+        ratios = np.divide(timeDict_np, sums[:, None], where=sums[:, None] != 0)  # Avoid division by zero
+
+        timeFrame = [[timee, ""] + timeDict[timee] + ratios[i].tolist() for i, timee in enumerate(timeDict)]  
+
+
+        topBuys = []
+        topSells = []
+
+        # Iterate through troPerCandle and compute values
+        for i in troPerCandle:
+            tobuyss = sum(x[1] for x in i[1] if x[5] == 'B')  # Sum buy orders
+            tosellss = sum(x[1] for x in i[1] if x[5] == 'A')  # Sum sell orders
             
-            for tdd in range(len(mTrade)):
-                mTrade[tdd][4] = tdd
-                
-            #[mTrade[i].insert(4,i) for i in range(len(mTrade))] 
+            topBuys.append(tobuyss)  # Store buy values
+            topSells.append(tosellss)  # Store sell values
+              
+
+        df_resampled2['topBuys'] = topBuys
+        df_resampled2['topSells'] = topSells
+        df_resampled2['topDiff'] = df_resampled2['topBuys'] - df_resampled2['topSells']
+        df_resampled2['topDiffNega'] = ((df_resampled2['topBuys'] - df_resampled2['topSells']).apply(lambda x: x if x < 0 else np.nan)).abs()
+        df_resampled2['topDiffPost'] = (df_resampled2['topBuys'] - df_resampled2['topSells']).apply(lambda x: x if x > 0 else np.nan)
+
+        df_resampled2['percentile_topBuys'] =  [percentileofscore(df_resampled2['topBuys'][:i+1], df_resampled2['topBuys'][i], kind='mean') for i in range(len(df_resampled2))]
+        df_resampled2['percentile_topSells'] = [percentileofscore(df_resampled2['topSells'][:i+1], df_resampled2['topSells'][i], kind='mean') for i in range(len(df_resampled2))] 
+
+        df_resampled2['percentile_Posdiff'] =  [percentileofscore(df_resampled2['topDiffPost'][:i+1].dropna(), df_resampled2['topDiffPost'][i], kind='mean') if not np.isnan(df_resampled2['topDiffPost'][i]) else None for i in range(len(df_resampled2))]
+        df_resampled2['percentile_Negdiff'] =  [percentileofscore(df_resampled2['topDiffNega'][:i+1].dropna(), df_resampled2['topDiffNega'][i], kind='mean') if not np.isnan(df_resampled2['topDiffNega'][i]) else None for i in range(len(df_resampled2))]
+
+        df_resampled2['allDiff'] = [i[2]-i[3] for i in timeFrame]
+        df_resampled2['buys'] = [i[2] for i in timeFrame]
+        df_resampled2['sells'] = [i[3] for i in timeFrame]
+        
+        df = pd.concat([pd.DataFrame(stored_data['df'], columns=list(df_resampled2.columns)), df_resampled2], ignore_index=True)
+        
+        df['datetime'] = pd.to_datetime(df['timestamp'], unit='ns')
+
+        # Convert to Eastern Time (automatically handles EST/EDT)
+        df['datetime_est'] = df['datetime'].dt.tz_localize('UTC').dt.tz_convert('America/New_York')
+
+        # Format as MM/DD/YYYY HH:MM in Eastern Time
+        df['formatted_date'] = df['datetime_est'].dt.strftime('%m/%d/%Y %H:%M')
+
+        df['buyPercent'] = df['buys'] / (df['buys']+df['sells'])
+        df['sellPercent'] = df['sells'] / (df['buys']+df['sells'])
+
+        df['topBuysPercent'] = ((df['topBuys']) / (df['topBuys']+df['topSells']))
+        df['topSellsPercent'] = ((df['topSells']) / (df['topBuys']+df['topSells']))
+
+
+        putCandImb =  df.index[
+            (df['topBuys'] > df['topSells']) &
+            (df['percentile_topBuys'] > 95) &
+            (df['topBuysPercent'] >= 0.65)
+        ].tolist()
+        callCandImb = df.index[
+            (df['topSells'] > df['topBuys']) &
+            (df['percentile_topSells'] > 95) &
+            (df['topSellsPercent'] >= 0.65)
+        ].tolist()
+        
+        
+        dtime = df['time'].dropna().values.tolist()
+        dtimeEpoch = df['timestamp'].dropna().values.tolist()
+        tradeEpoch = combined_trades.iloc[:, 2].tolist()
+
+        alltimeDict = {}
+        allmake = []
+        for ttm in range(len(dtimeEpoch)):
             
-            newwT = []
-            for x in mTrade[:100]:
-                newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], stored_data['timestamp'].searchsorted(x[2])-1])
-                
+            allmake.append([dtimeEpoch[ttm],dtime[ttm],bisect.bisect_left(tradeEpoch, dtimeEpoch[ttm])]) #min(range(len(tradeEpoch)), key=lambda i: abs(tradeEpoch[i] - dtimeEpoch[ttm]))
+            alltimeDict[dtime[ttm]] = [0,0,0]
             
-                
-            tpo.append([[i[0], i[1], i[2], i[3], i[4], i[6], i[7]] for i in newwT[:100]])
-            
-            data = [i[0] for i in newwT[:100]] #150
-            data.sort(reverse=True)
-            differences = [abs(data[i+1] - data[i]) for i in range(len(data) - 1)]
-            average_difference = sum(differences) / len(differences)
-            cdata = find_clusters(data, average_difference)
-            clust = [i for i in cdata if len(i) >= 5] #6
-            clusterList.append(clust)
-                
-        '''
-        imbalance = []
-        for i in range(len(df['buyDecimal'])):
-            if df['buyDecimal'][i] >= 0.58:
-                mn = df['buyCount'].loc[:i].mean()
-                if df['buyCount'][i] >= mn:
-                    imbalance.append(1)
+        allvalist =[]
+        prevHist = []
+        for it in range(len(allmake)):
+            if it+1 < len(allmake):
+                tempList = combined_trades[allmake[it][2]:allmake[it+1][2]]
+                if it == 0:
+                    temphs = historV2(df[:it+1],100,{}, tempList, [])
+                    prevHist = temphs
+                    vA = valueAreaV3(temphs[0])
+                    allvalist.append(vA  + [df['timestamp'][it], df['time'][it], temphs[1]]) 
                 else:
-                    imbalance.append(0)
-            elif df['sellDecimal'][i] >= 0.58:
-                mn = df['sellCount'].loc[:i].mean()
-                if df['sellCount'][i] >= mn:
-                    imbalance.append(2)
-                else:
-                    imbalance.append(0)
+                    temphs = historV2(df[:it+1],100,{}, tempList, [])
+                    cHist = combine_histogram_data(prevHist, temphs)
+                    prevHist = cHist
+                    vA = valueAreaV3(cHist[0])
+                    allvalist.append(vA  + [df['timestamp'][it], df['time'][it], cHist[1]]) 
             else:
-                imbalance.append(0)
-                
-        df['imbalance'] = pd.Series([i for i in imbalance])
-        '''
-        
-        df['LowVA'] = pd.Series([i[0] for i in valist])
-        df['HighVA'] = pd.Series([i[1] for i in valist])
-        df['POC']  = pd.Series([i[2] for i in valist])
-        df['indes'] = pd.Series([i for i in range(0,len(df))])
-        #df['DailyPOCAVG']= df['POC'].cumsum() / (df.index + 1)
-        #df['DailyLowVAAVG']= df['LowVA'].cumsum() / (df.index + 1)
-        #df['DailyHighVAAVG']= df['HighVA'].cumsum() / (df.index + 1)
-        #---------------------------------------------------------------    
-        finalTpo = []
-        newTPO = []
-        for i in tpo:
-            for x in i:
-                newTPO.append(x[0])
-                newTPO.append(x[1])
-                newTPO.append(x[6])
-                if x[3] == 'A':
-                   newTPO.append(0)
-                elif x[3] == 'B':
-                   newTPO.append(1)
-                else:
-                   newTPO.append(2)
-                newTPO.append(x[4])
-            finalTpo.append(newTPO)
-            newTPO = []
-            #print(i)
-            #break
+                tempList = combined_trades
+                temphs = historV2(df[:it+1],100,{}, tempList, [])
+                vA = valueAreaV3(temphs[0])
+                allvalist.append(vA  + [df['timestamp'][it], df['time'][it], temphs[1]])
             
-        max_length = max(len(inner_list) for inner_list in finalTpo)
-        for inner_list in finalTpo:
-            while len(inner_list) < max_length:
-                inner_list.append(0)
-        
-        # Determine the number of columns
-        max_columns = max(len(row) for row in finalTpo)
-        # Generate column names
-        column_names = [f"TopOrders_{i}" for i in range(max_columns)]
-        # Create a DataFrame
-        df1 = pd.DataFrame(finalTpo, columns=column_names)
-        df= pd.concat([df, df1],  axis = 1)
-        #---------------------------------------------------------------
-        finalClust = []
-        newClust = []
-        for i in range(len(clusterList)):
-            for c in sorted(clusterList[i], key=len, reverse=True):
-                newClust.append(c[0])
-                newClust.append(c[len(c)-1])
-                newClust.append(len(c))
-                
-                bidCount = 0
-                askCount = 0
-                midCount = 0
-                for tp in tpo[i]:
-                    if c[len(c)-1] <= tp[0] <= c[0] :
-                        if tp[3] == 'B':
-                            bidCount+= tp[1]
-                        elif tp[3] == 'A':
-                            askCount+= tp[1]
-                        elif tp[3] == 'N':
-                            midCount+= tp[1]
-                            
-                newClust.append(bidCount)
-                newClust.append(askCount)
-                #newClust.append(midCount)
-                newClust.append(askCount+bidCount+midCount)
-                newClust.append(bidCount/ (bidCount+askCount+midCount+1))
-                newClust.append(askCount/ (bidCount+askCount+midCount+1))
-                
-            finalClust.append(newClust)
-            newClust = []
-            
-        max_length = max(len(inner_list) for inner_list in finalClust)
-        
-        # Pad each inner list with zeros until it reaches the maximum length
-        for inner_list in finalClust:
-            while len(inner_list) < max_length:
-                inner_list.append(0)
-                
-        
-        column_names = [f"Cluster{i}" for i in range(max_length)]
-        # Create a DataFrame
-        df1 = pd.DataFrame(finalClust, columns=column_names)
-        df= pd.concat([df, df1],  axis = 1)
-        #---------------------------------------------------------------
-        finalvp = []
-        newvp = []
-        for i in vplist:
-            for v in i:
-                newvp.append(v[0])
-                newvp.append(v[1])
-                newvp.append(v[2])
-                newvp.append(v[3])
-                newvp.append(v[4])
-            finalvp.append(newvp)
-            newvp = []
-            
-            
-        max_length = max(len(inner_list) for inner_list in finalvp)
-        
-        # Pad each inner list with zeros until it reaches the maximum length
-        for inner_list in finalvp:
-            while len(inner_list) < max_length:
-                inner_list.append(0)
-        
-        column_names = [f"VolPro{i}" for i in range(max_length)]
-        # Create a DataFrame
-        df1 = pd.DataFrame(finalvp, columns=column_names)
-        df= pd.concat([df, df1],  axis = 1)
-        
-        
-        #---------------------------------------------------------------
-        fbuyss = []
-        fsellss = []
-        
-        for indx in range(len(df['indes'])):
-                
-            buys = [i for i in df['buyCount'].iloc[:indx+1]]
-            sells = [i for i in df['sellCount'].iloc[:indx+1]]
-            
-            
-            fbuyss.append(sum(buys))
-            fsellss.append(sum(sells))
-        
-        df1 = pd.DataFrame([[fbuyss[i],fsellss[i]] for i in range(len(fbuyss))], columns=['buyCountCum', 'sellCountCum'])
-        df= pd.concat([df, df1],  axis = 1)
-        #-----------------------------------------------------------------------------------------------------------
-        '''
-        fbuyss = []
-        fsellss = []
-        
-        for indx in range(len(df['indes'])):
-                
-            buys = [i for i in df['buyCount'].iloc[:indx+1]]
-            sells = [i for i in df['sellCount'].iloc[:indx+1]]
-            
-            
-                
-            newBuys = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] > 0]
-            newSells = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] < 0]
-            
-            buySum = sum(newBuys)
-            sellSum = sum(newSells)
-            
-            fbuyss.append(buySum)
-            fsellss.append(sellSum)
-        
-        df1 = pd.DataFrame([[fbuyss[i],fsellss[i]] for i in range(len(fbuyss))], columns=['buyDiffSum', 'sellDiffSum'])
-        df= pd.concat([df, df1],  axis = 1)
-        '''
-        
-        
-        #--------------------------------------------------------------------------------------------------------------
-        localMin = []
-        localMax = []
-        for sf in range(len(df)):
-            localMin.append([df['low'][i] for i in argrelextrema(df[:sf+1].low.values, np.less_equal, order=18)[0]])
-            localMax.append([df['high'][i] for i in argrelextrema(df[:sf+1].high.values, np.greater_equal, order=18)[0]])
-    
-    
-        max_length = max(len(inner_list) for inner_list in localMin)
-        
-        for inner_list in localMin:
-            while len(inner_list) < max_length:
-                inner_list.append(0)
-                
-        column_names = [f"localMin{i}" for i in range(max_length)]
-        # Create a DataFrame
-        df1 = pd.DataFrame(localMin, columns=column_names)
-        df= pd.concat([df, df1],  axis = 1)
-        
-        #prevDf = pd.read_csv(stkName+'Data-4.csv')
-        blob = Blob('Daily'+stkName, bucket)
-        buffer = io.BytesIO()
-        blob.download_to_file(buffer)
-        buffer.seek(0)
-    
-        prevDf = pd.read_csv(buffer)
-        
-        prevDf_min_cols = [col for col in prevDf.columns if col.startswith('localMin')]
-        cuurtmincols = [col for col in df.columns if col.startswith('localMin')]
-        
-        if len(prevDf_min_cols) > len(cuurtmincols):
-            for cl in prevDf_min_cols:
-                if cl not in cuurtmincols:
-                    df[cl] = 0
-                    cuurtmincols.append(cl)
-                    
-        elif len(cuurtmincols) > len(prevDf_min_cols):
-            for cl in cuurtmincols:
-                if cl not in prevDf_min_cols:
-                    prevDf[cl] = 0
-                    prevDf_min_cols.append(cl)
-    
-        
-        #---------------------------------------------------------------
-        max_length = max(len(inner_list) for inner_list in localMax)
-        
-        for inner_list in localMax:
-            while len(inner_list) < max_length:
-                inner_list.append(0)
-                
-        column_names = [f"localMax{i}" for i in range(max_length)]
-        # Create a DataFrame
-        df1 = pd.DataFrame(localMax, columns=column_names)
-        df= pd.concat([df, df1],  axis = 1)
-        
-        
-        prevDf_min_cols = [col for col in prevDf.columns if col.startswith('localMax')]
-        cuurtmincols = [col for col in df.columns if col.startswith('localMax')]
-        
-        if len(prevDf_min_cols) > len(cuurtmincols):
-            for cl in prevDf_min_cols:
-                if cl not in cuurtmincols:
-                    df[cl] = 0
-                    cuurtmincols.append(cl)
-                    
-        elif len(cuurtmincols) > len(prevDf_min_cols):
-            for cl in cuurtmincols:
-                if cl not in prevDf_min_cols:
-                    prevDf[cl] = 0
-                    prevDf_min_cols.append(cl)
-                   
-        #---------------------------------------------------------------
-        '''
-        lfbuySum = []
-        lfsellSum = []
-        
-        for indx in range(len(df['indes'])):
-            if indx - 4 < 0:
-                lfbuySum.append(sum(df['buyCount'][:indx+1]))
-                lfsellSum.append(sum(df['sellCount'][:indx+1]))
-            elif indx - 4 >= 0:
-                lfbuySum.append(sum(df['buyCount'][indx-4:indx+1]))
-                lfsellSum.append(sum(df['sellCount'][indx-4:indx+1]))
-                
-        df1 = pd.DataFrame(lfbuySum, columns=['buyCount5C'])
-        df = pd.concat([df, df1],  axis = 1)
-        
-        df1 = pd.DataFrame(lfsellSum, columns=['sellCount5C'])
-        df = pd.concat([df, df1],  axis = 1)
-        '''       
-        
-        #---------------------------------------------------------------
-        
-        finall = []
-        for i in tpo:
-            tobuyss =  sum([t[1] for t in i if t[3] == 'B'])
-            tosellss = sum([t[1] for t in i if t[3] == 'A'])
-            
-            try:
-                finall.append([tobuyss,tosellss, tobuyss/(tobuyss+tosellss), tosellss/(tobuyss+tosellss)])
-            except(ZeroDivisionError):
-                finall.append([0,0, 0, 0])
-            
-        df1 = pd.DataFrame(finall, columns=['topOrderBuy', 'topOrderSell', 'topOrderBuyPercent', 'topOrderSellPercent'])
-        df = pd.concat([df, df1],  axis = 1)
-        
+        df['allLowVA'] = pd.Series([i[0] for i in allvalist])
+        df['allHighVA'] = pd.Series([i[1] for i in allvalist])
+        df['allPOC']  = pd.Series([i[2] for i in allvalist])
+        df['allPOC2']  = pd.Series([i[5] for i in allvalist])
 
-        print(stkName)
-        stored_data = stored_data.iloc[:-1]
-        stored_data = pd.concat([stored_data, df], ignore_index=True)
-        stored_data['DailyPOCAVG']= stored_data['POC'].cumsum() / (stored_data.index + 1)
-        df = stored_data.copy(deep=True)
-        df['indes'] = pd.Series([i for i in range(0,len(df))])
-        
-
-        fbuyss = []
-        fsellss = []
-        
-        for indx in range(len(df)):
-                
-            buys = [i for i in df['buyCount'].iloc[:indx+1]]
-            sells = [i for i in df['sellCount'].iloc[:indx+1]]
-            
-            
-                
-            newBuys = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] > 0]
-            newSells = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] < 0]
-            
-            buySum = sum(newBuys)
-            sellSum = sum(newSells)
-            
-            fbuyss.append(buySum)
-            fsellss.append(sellSum)
-
-        df['buyDiffSum'] = pd.Series([i for i in fbuyss])
-        df['sellDiffSum'] = pd.Series([i for i in fsellss])
-
-        lfbuySum = []
-        lfsellSum = []
-        
-        for indx in range(len(df)):
-            if indx - 4 < 0:
-                lfbuySum.append(sum(df['buyCount'][:indx+1]))
-                lfsellSum.append(sum(df['sellCount'][:indx+1]))
-            elif indx - 4 >= 0:
-                lfbuySum.append(sum(df['buyCount'][indx-4:indx+1]))
-                lfsellSum.append(sum(df['sellCount'][indx-4:indx+1]))
-                
-        df['buyCount5C'] = pd.Series([i for i in lfbuySum])
-        df['sellCount5C'] = pd.Series([i for i in lfsellSum])
-
-
-        stored_data = df.to_dict(orient='records')
-        
-        #df.to_csv(stkName+'Data-3.csv', index=False)
-        #prevDf = pd.read_csv(stkName+'Data-2.csv')
-        
-        if prevDf.shape[1] > df.shape[1]:
-            pattern = 'Cluster'
-            matching_columns = [col for col in df.columns if col.startswith(pattern)]
-            last_matching_column = matching_columns[-1]
-            colCount = int(last_matching_column.replace('Cluster',''))+1
-            while prevDf.shape[1] > df.shape[1]:
-                df['Cluster'+str(colCount)] = 0
-                colCount+=1
-                
-            col_cluster_cols = [col for col in df.columns if col.startswith('Cluster')]
-            col_vp_cols = [col for col in df.columns if col.startswith('VolPro')]
-            
-            # Identify other columns
-            other_cols = [col for col in df.columns if col not in col_cluster_cols + col_vp_cols] 
-            
-            # Rearrange columns
-            new_column_order = other_cols+col_cluster_cols+col_vp_cols
-            
-            # Reorder the DataFrame
-            df = df[new_column_order]
-            combined_df = pd.concat([prevDf, df], ignore_index=True)
-
-            
-        elif df.shape[1] > prevDf.shape[1]:
-            pattern = 'Cluster'
-            matching_columns = [col for col in prevDf.columns if col.startswith(pattern)]
-            last_matching_column = matching_columns[-1]
-            colCount = int(last_matching_column.replace('Cluster',''))+1
-            while df.shape[1] > prevDf.shape[1]:
-                prevDf['Cluster'+str(colCount)] = 0
-                colCount+=1
-                
-            col_cluster_cols = [col for col in prevDf.columns if col.startswith('Cluster')]
-            col_vp_cols = [col for col in prevDf.columns if col.startswith('VolPro')]
-            
-            other_cols = [col for col in prevDf.columns if col not in col_cluster_cols + col_vp_cols]
-            
-            # Rearrange columns
-            new_column_order = other_cols+col_cluster_cols+col_vp_cols
-            
-            # Reorder the DataFrame
-            prevDf = prevDf[new_column_order]
-            
-            combined_df = pd.concat([prevDf, df], ignore_index=True)
-            #combined_df.to_csv(stkName+'Data-4.csv', index=False) 
-            
-            # Display the DataFrame with the new column order
-            #print(df.head())
-        elif df.shape[1] == prevDf.shape[1]:
-            
-            combined_df = pd.concat([prevDf, df], ignore_index=True)
-            #combined_df.to_csv(stkName+'Data-4.csv', index=False) 
-            
-        
-            
         
         
-        
-
-    
     if stored_data is None:
-        print('NewStore')
-        epochTimes = [i[2] for i in AllTrades]
-        vplist = []
-        valist = []
-        tpo = []
-        clusterList = []
-        
-        for i in range(len(df['time'])-1):
-            hs = historV2(df[:i+1],50,{},AllTrades[:bisect.bisect_left(epochTimes, int(df['timestamp'][i+1]))],[])
+        print('Newstored')
+        blob = bucket.blob('Daily'+stkName)
 
+        # Download CSV content as string
+        csv_data = blob.download_as_text()
+    
+        # Convert to DataFrame using StringIO
+        prevDf = pd.read_csv(StringIO(csv_data))
         
-            vplist.append([[xx[0], xx[3], xx[1], xx[7], xx[8]] for xx in hs[0]])
-            valist.append(valueAreaV1(hs[0]))
+        fs = gcsfs.GCSFileSystem()
+        
+        # Reading directly
+        tradeDf = pd.read_parquet(
+            f'gs://stockapp-storage/{stkName}_combined_trades.parquet',
+            filesystem=fs,
+            engine='pyarrow'
+        )
+        
+        stored_data = {'df': prevDf.values.tolist(), 'trades': tradeDf.values.tolist()}
             
-            mTrade = [i for i in AllTrades[:bisect.bisect_left(epochTimes, int(df['timestamp'][i+1]))]]  #AllTrades[:(len(tradeTimes) - 1 - tradeTimes.index(df['time'][i+1])) +1]
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            #if sname != previous_stkName:
+            # Download everything when stock name changes
+            futures = [
+                executor.submit(download_data, bucket, 'FuturesOHLC' + str(symbolNum)),
+                executor.submit(download_data, bucket, 'FuturesTrades' + str(symbolNum)),]
+                #executor.submit(download_daily_data, bucket, stkName)]
             
-             
-            mTrade = sorted(mTrade, key=lambda d: d[1], reverse=True)
-            
-            for tdd in range(len(mTrade)):
-                mTrade[tdd][4] = tdd
+            FuturesOHLC, FuturesTrades = [future.result() for future in futures] #, prevDf
+
+
+        # Process data with pandas directly
+        FuturesOHLC = pd.read_csv(io.StringIO(FuturesOHLC), header=None)
+        FuturesTrades = pd.read_csv(io.StringIO(FuturesTrades), header=None)
+        
                 
-            #[mTrade[i].insert(4,i) for i in range(len(mTrade))] 
-            
-            newwT = []
-            for x in mTrade[:100]:
-                newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], df['timestamp'].searchsorted(x[2])-1])
                 
+        aggs = [ ] 
+        for row in FuturesOHLC.itertuples(index=False):
+            # Extract values from the row, where row[0] corresponds to the first column, row[1] to the second, etc.
+            hourss = datetime.fromtimestamp(int(row[0]) // 1000000000).hour
+            hourss = f"{hourss:02d}"  # Ensure it's a two-digit string
+            minss = datetime.fromtimestamp(int(row[0]) // 1000000000).minute
+            minss = f"{minss:02d}"  # Ensure it's a two-digit string
             
-                
-            tpo.append([[i[0], i[1], i[2], i[3], i[4], i[6], i[7]] for i in newwT[:100]])
+            # Construct the time string
+            opttimeStamp = f"{hourss}:{minss}:00"
             
-            data = [i[0] for i in newwT[:100]]
-            data.sort(reverse=True)
-            differences = [abs(data[i+1] - data[i]) for i in range(len(data) - 1)]
-            try:
-                average_difference = sum(differences) / len(differences)
-                cdata = find_clusters(data, average_difference)
-                clust = [i for i in cdata if len(i) >= 5]
-                clusterList.append(clust)
-            except(ZeroDivisionError):
-                clusterList.append([])
-            #break
-        else:
-            hs = historV2(df,50,{},AllTrades,[])
-            vplist.append([[xx[0], xx[3], xx[1], xx[7], xx[8]] for xx in hs[0]])
-            valist.append(valueAreaV1(hs[0]))
+            # Append the transformed row data to the aggs list
+            aggs.append([
+                row[2] / 1e9,  # Convert the value at the third column (open)
+                row[3] / 1e9,  # Convert the value at the fourth column (high)
+                row[4] / 1e9,  # Convert the value at the fifth column (low)
+                row[5] / 1e9,  # Convert the value at the sixth column (close)
+                int(row[6]),   # Volume
+                opttimeStamp,  # The formatted timestamp
+                int(row[0]),   # Original timestamp
+                int(row[1])    # Additional identifier or name
+            ])
+        
+        df2 = pd.DataFrame(aggs, columns = ['open', 'high', 'low', 'close', 'volume', 'time', 'timestamp', 'name',])
             
-            mTrade = [i for i in AllTrades]
+        df2['strTime'] = df2['timestamp'].apply(lambda x: pd.Timestamp(int(x) // 10**9, unit='s', tz='EST') )
+        
+        df2.set_index('strTime', inplace=True)
+        df2['volume'] = pd.to_numeric(df2['volume'], downcast='integer')
+        df_resampled2 = df2.resample(interv+'min').agg({
+            'timestamp': 'first',
+            'name': 'last',
+            'open': 'first',
+            'high': 'max',
+            'low': 'min',
+            'close': 'last',
+            'time': 'first',
+            'volume': 'sum'
+        })
+        
+        df_resampled2.reset_index(drop=True, inplace=True)
+        df_resampled2.insert(0, "index_count", df_resampled2.index)
+        df_resampled2.dropna(inplace=True)
+        df_resampled2.reset_index(drop=True, inplace=True)
+        
+        timestamps = FuturesTrades.iloc[:, 0].values
             
-             
-            mTrade = sorted(mTrade, key=lambda d: d[1], reverse=True)
+        # Convert timestamps and extract hours and minutes vectorized
+        seconds_timestamps = timestamps // 1000000000
+        dt_array = np.array([datetime.fromtimestamp(ts) for ts in seconds_timestamps])
+
+        # Format hours and minutes
+        hours = np.array([f"{dt.hour:02d}" for dt in dt_array])
+        minutes = np.array([f"{dt.minute:02d}" for dt in dt_array])
+
+        # Create formatted timestamps
+        opt_timestamps = np.array([f"{h}:{m}:00" for h, m in zip(hours, minutes)])
+
+        # Create indices array
+        indices = np.arange(len(timestamps))
+
+        # Create the AllTrades array efficiently
+        AllTrades = np.column_stack([
+            FuturesTrades.iloc[:, 1].values / 1e9,  # Scale by 1e9
+            FuturesTrades.iloc[:, 2].values,
+            timestamps,
+            np.zeros(len(timestamps), dtype=int),
+            indices,
+            FuturesTrades.iloc[:, 3].values,
+            opt_timestamps
+        ])
+
+           
+
+        combined_trades = pd.concat([tradeDf, pd.DataFrame(AllTrades, columns=['0','1','2','3','4','5','6'])], ignore_index=True)
+
+
+        dtimeEpoch_np = np.array(df_resampled2['timestamp'].dropna().values)
+        dtime_np = np.array(df_resampled2['time'].dropna().values)
+        tradeEpoch_np = np.array([i[2] for i in AllTrades])  # Extract timestamp from trades
+
+        # Find the nearest tradeEpoch index using NumPy vectorization
+        indices = np.searchsorted(tradeEpoch_np, dtimeEpoch_np, side='left')
+
+        # Create `make` list using NumPy
+        make = np.column_stack((dtimeEpoch_np, dtime_np, indices)).tolist()
+
+        # Faster dictionary initialization using dictionary comprehension
+        timeDict = {dtime_np[i]: [0, 0, 0] for i in range(len(dtime_np))}
+
+        # Initialize troPerCandle and footPrint as empty lists
+        troPerCandle = []
+        #footPrint = []
+
+        all_trades_np = np.array(AllTrades, dtype=object)
+
+
+        #trade_prices = all_trades_np[:, 0].astype(float)  # Convert to float for numerical operations
+        #trade_qty = all_trades_np[:, 1].astype(int)
+        #trade_types = all_trades_np[:, 5] 
+
+
+        for tr in range(len(make)):
+            start_idx = make[tr][2]
+            end_idx = make[tr+1][2] if tr+1 < len(make) else len(AllTrades)
+
+            # Get trades for this time window
+            tempList = all_trades_np[start_idx:end_idx]
+
+            # Extract prices for binning
+            if len(tempList) > 0:
+
+                # Store top 100 largest trades (fast NumPy sorting)
+                sorted_trades = tempList[np.argsort(tempList[:, 1].astype(int))][-100:].tolist()
+                troPerCandle.append([make[tr][1], sorted_trades])
+
+                # Aggregate buy/sell/neutral trade volumes
+                for row in tempList:
+                    if row[5] == "B":
+                        timeDict[make[tr][1]][0] += row[1]
+                    elif row[5] == "A":
+                        timeDict[make[tr][1]][1] += row[1]
+                    elif row[5] == "N":
+                        timeDict[make[tr][1]][2] += row[1]
+                        
+        timeDict_np = np.array(list(timeDict.values()))
+        sums = timeDict_np.sum(axis=1)
+        ratios = np.divide(timeDict_np, sums[:, None], where=sums[:, None] != 0)  # Avoid division by zero
+
+        timeFrame = [[timee, ""] + timeDict[timee] + ratios[i].tolist() for i, timee in enumerate(timeDict)]  
+
+
+        topBuys = []
+        topSells = []
+
+        # Iterate through troPerCandle and compute values
+        for i in troPerCandle:
+            tobuyss = sum(x[1] for x in i[1] if x[5] == 'B')  # Sum buy orders
+            tosellss = sum(x[1] for x in i[1] if x[5] == 'A')  # Sum sell orders
             
-            for tdd in range(len(mTrade)):
-                mTrade[tdd][4] = tdd
-                
-            #[mTrade[i].insert(4,i) for i in range(len(mTrade))] 
+            topBuys.append(tobuyss)  # Store buy values
+            topSells.append(tosellss)  # Store sell values
+              
+
+        df_resampled2['topBuys'] = topBuys
+        df_resampled2['topSells'] = topSells
+        df_resampled2['topDiff'] = df_resampled2['topBuys'] - df_resampled2['topSells']
+        df_resampled2['topDiffNega'] = ((df_resampled2['topBuys'] - df_resampled2['topSells']).apply(lambda x: x if x < 0 else np.nan)).abs()
+        df_resampled2['topDiffPost'] = (df_resampled2['topBuys'] - df_resampled2['topSells']).apply(lambda x: x if x > 0 else np.nan)
+
+        df_resampled2['percentile_topBuys'] =  [percentileofscore(df_resampled2['topBuys'][:i+1], df_resampled2['topBuys'][i], kind='mean') for i in range(len(df_resampled2))]
+        df_resampled2['percentile_topSells'] = [percentileofscore(df_resampled2['topSells'][:i+1], df_resampled2['topSells'][i], kind='mean') for i in range(len(df_resampled2))] 
+
+        df_resampled2['percentile_Posdiff'] =  [percentileofscore(df_resampled2['topDiffPost'][:i+1].dropna(), df_resampled2['topDiffPost'][i], kind='mean') if not np.isnan(df_resampled2['topDiffPost'][i]) else None for i in range(len(df_resampled2))]
+        df_resampled2['percentile_Negdiff'] =  [percentileofscore(df_resampled2['topDiffNega'][:i+1].dropna(), df_resampled2['topDiffNega'][i], kind='mean') if not np.isnan(df_resampled2['topDiffNega'][i]) else None for i in range(len(df_resampled2))]
+
+        df_resampled2['allDiff'] = [i[2]-i[3] for i in timeFrame]
+        df_resampled2['buys'] = [i[2] for i in timeFrame]
+        df_resampled2['sells'] = [i[3] for i in timeFrame]
+        
+        df = pd.concat([prevDf, df_resampled2], ignore_index=True)
+        
+        df['datetime'] = pd.to_datetime(df['timestamp'], unit='ns')
+
+        # Convert to Eastern Time (automatically handles EST/EDT)
+        df['datetime_est'] = df['datetime'].dt.tz_localize('UTC').dt.tz_convert('America/New_York')
+
+        # Format as MM/DD/YYYY HH:MM in Eastern Time
+        df['formatted_date'] = df['datetime_est'].dt.strftime('%m/%d/%Y %H:%M')
+
+        df['buyPercent'] = df['buys'] / (df['buys']+df['sells'])
+        df['sellPercent'] = df['sells'] / (df['buys']+df['sells'])
+
+        df['topBuysPercent'] = ((df['topBuys']) / (df['topBuys']+df['topSells']))
+        df['topSellsPercent'] = ((df['topSells']) / (df['topBuys']+df['topSells']))
+
+
+        putCandImb =  df.index[
+            (df['topBuys'] > df['topSells']) &
+            (df['percentile_topBuys'] > 95) &
+            (df['topBuysPercent'] >= 0.65)
+        ].tolist()
+        callCandImb = df.index[
+            (df['topSells'] > df['topBuys']) &
+            (df['percentile_topSells'] > 95) &
+            (df['topSellsPercent'] >= 0.65)
+        ].tolist()
+        
+        
+        dtime = df['time'].dropna().values.tolist()
+        dtimeEpoch = df['timestamp'].dropna().values.tolist()
+        tradeEpoch = combined_trades.iloc[:, 2].tolist()
+
+        alltimeDict = {}
+        allmake = []
+        for ttm in range(len(dtimeEpoch)):
             
-            newwT = []
-            for x in mTrade[:100]:
-                newwT.append([x[0],x[1],x[2],x[5], x[4],x[3],x[6], df['timestamp'].searchsorted(x[2])-1])
-                
+            allmake.append([dtimeEpoch[ttm],dtime[ttm],bisect.bisect_left(tradeEpoch, dtimeEpoch[ttm])]) #min(range(len(tradeEpoch)), key=lambda i: abs(tradeEpoch[i] - dtimeEpoch[ttm]))
+            alltimeDict[dtime[ttm]] = [0,0,0]
             
-                
-            tpo.append([[i[0], i[1], i[2], i[3], i[4], i[6], i[7]] for i in newwT[:100]])
-            
-            data = [i[0] for i in newwT[:100]] #150
-            data.sort(reverse=True)
-            differences = [abs(data[i+1] - data[i]) for i in range(len(data) - 1)]
-            average_difference = sum(differences) / len(differences)
-            cdata = find_clusters(data, average_difference)
-            clust = [i for i in cdata if len(i) >= 5] #6
-            clusterList.append(clust)
-                
-        '''
-        imbalance = []
-        for i in range(len(df['buyDecimal'])):
-            if df['buyDecimal'][i] >= 0.58:
-                mn = df['buyCount'].loc[:i].mean()
-                if df['buyCount'][i] >= mn:
-                    imbalance.append(1)
+        allvalist =[]
+        prevHist = []
+        for it in range(len(allmake)):
+            if it+1 < len(allmake):
+                tempList = combined_trades[allmake[it][2]:allmake[it+1][2]]
+                if it == 0:
+                    temphs = historV2(df[:it+1],100,{}, tempList, [])
+                    prevHist = temphs
+                    vA = valueAreaV3(temphs[0])
+                    allvalist.append(vA  + [df['timestamp'][it], df['time'][it], temphs[1]]) 
                 else:
-                    imbalance.append(0)
-            elif df['sellDecimal'][i] >= 0.58:
-                mn = df['sellCount'].loc[:i].mean()
-                if df['sellCount'][i] >= mn:
-                    imbalance.append(2)
-                else:
-                    imbalance.append(0)
+                    temphs = historV2(df[:it+1],100,{}, tempList, [])
+                    cHist = combine_histogram_data(prevHist, temphs)
+                    prevHist = cHist
+                    vA = valueAreaV3(cHist[0])
+                    allvalist.append(vA  + [df['timestamp'][it], df['time'][it], cHist[1]]) 
             else:
-                imbalance.append(0)
-                
-        df['imbalance'] = pd.Series([i for i in imbalance])
-        '''
-        
-        df['LowVA'] = pd.Series([i[0] for i in valist])
-        df['HighVA'] = pd.Series([i[1] for i in valist])
-        df['POC']  = pd.Series([i[2] for i in valist])
-        df['indes'] = pd.Series([i for i in range(0,len(df))])
-        df['DailyPOCAVG']= df['POC'].cumsum() / (df.index + 1)
-        #df['DailyLowVAAVG']= df['LowVA'].cumsum() / (df.index + 1)
-        #df['DailyHighVAAVG']= df['HighVA'].cumsum() / (df.index + 1)
-        #---------------------------------------------------------------    
-        finalTpo = []
-        newTPO = []
-        for i in tpo:
-            for x in i:
-                newTPO.append(x[0])
-                newTPO.append(x[1])
-                newTPO.append(x[6])
-                if x[3] == 'A':
-                   newTPO.append(0)
-                elif x[3] == 'B':
-                   newTPO.append(1)
-                else:
-                   newTPO.append(2)
-                newTPO.append(x[4])
-            finalTpo.append(newTPO)
-            newTPO = []
-            #print(i)
-            #break
+                tempList = combined_trades
+                temphs = historV2(df[:it+1],100,{}, tempList, [])
+                vA = valueAreaV3(temphs[0])
+                allvalist.append(vA  + [df['timestamp'][it], df['time'][it], temphs[1]])
             
-        max_length = max(len(inner_list) for inner_list in finalTpo)
-        for inner_list in finalTpo:
-            while len(inner_list) < max_length:
-                inner_list.append(0)
-        
-        # Determine the number of columns
-        max_columns = max(len(row) for row in finalTpo)
-        # Generate column names
-        column_names = [f"TopOrders_{i}" for i in range(max_columns)]
-        # Create a DataFrame
-        df1 = pd.DataFrame(finalTpo, columns=column_names)
-        df= pd.concat([df, df1],  axis = 1)
-        #---------------------------------------------------------------
-        finalClust = []
-        newClust = []
-        for i in range(len(clusterList)):
-            for c in sorted(clusterList[i], key=len, reverse=True):
-                newClust.append(c[0])
-                newClust.append(c[len(c)-1])
-                newClust.append(len(c))
-                
-                bidCount = 0
-                askCount = 0
-                midCount = 0
-                for tp in tpo[i]:
-                    if c[len(c)-1] <= tp[0] <= c[0] :
-                        if tp[3] == 'B':
-                            bidCount+= tp[1]
-                        elif tp[3] == 'A':
-                            askCount+= tp[1]
-                        elif tp[3] == 'N':
-                            midCount+= tp[1]
-                            
-                newClust.append(bidCount)
-                newClust.append(askCount)
-                #newClust.append(midCount)
-                newClust.append(askCount+bidCount+midCount)
-                newClust.append(bidCount/ (bidCount+askCount+midCount+1))
-                newClust.append(askCount/ (bidCount+askCount+midCount+1))
-                
-            finalClust.append(newClust)
-            newClust = []
-            
-        max_length = max(len(inner_list) for inner_list in finalClust)
-        
-        # Pad each inner list with zeros until it reaches the maximum length
-        for inner_list in finalClust:
-            while len(inner_list) < max_length:
-                inner_list.append(0)
-                
-        
-        column_names = [f"Cluster{i}" for i in range(max_length)]
-        # Create a DataFrame
-        df1 = pd.DataFrame(finalClust, columns=column_names)
-        df= pd.concat([df, df1],  axis = 1)
-        #---------------------------------------------------------------
-        finalvp = []
-        newvp = []
-        for i in vplist:
-            for v in i:
-                newvp.append(v[0])
-                newvp.append(v[1])
-                newvp.append(v[2])
-                newvp.append(v[3])
-                newvp.append(v[4])
-            finalvp.append(newvp)
-            newvp = []
-            
-            
-        max_length = max(len(inner_list) for inner_list in finalvp)
-        
-        # Pad each inner list with zeros until it reaches the maximum length
-        for inner_list in finalvp:
-            while len(inner_list) < max_length:
-                inner_list.append(0)
-        
-        column_names = [f"VolPro{i}" for i in range(max_length)]
-        # Create a DataFrame
-        df1 = pd.DataFrame(finalvp, columns=column_names)
-        df= pd.concat([df, df1],  axis = 1)
-        
-        
-        #---------------------------------------------------------------
-        fbuyss = []
-        fsellss = []
-        
-        for indx in range(len(df)):
-                
-            buys = [i for i in df['buyCount'].iloc[:indx+1]]
-            sells = [i for i in df['sellCount'].iloc[:indx+1]]
-            
-            
-            fbuyss.append(sum(buys))
-            fsellss.append(sum(sells))
-        
-        df1 = pd.DataFrame([[fbuyss[i],fsellss[i]] for i in range(len(fbuyss))], columns=['buyCountCum', 'sellCountCum'])
-        df= pd.concat([df, df1],  axis = 1)
-        #-----------------------------------------------------------------------------------------------------------
-        fbuyss = []
-        fsellss = []
-        
-        for indx in range(len(df)):
-                
-            buys = [i for i in df['buyCount'].iloc[:indx+1]]
-            sells = [i for i in df['sellCount'].iloc[:indx+1]]
-            
-            
-                
-            newBuys = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] > 0]
-            newSells = [abs(buys[i]-sells[i]) for i in range(len(buys)) if buys[i]-sells[i] < 0]
-            
-            buySum = sum(newBuys)
-            sellSum = sum(newSells)
-            
-            fbuyss.append(buySum)
-            fsellss.append(sellSum)
-        
-        df1 = pd.DataFrame([[fbuyss[i],fsellss[i]] for i in range(len(fbuyss))], columns=['buyDiffSum', 'sellDiffSum'])
-        df= pd.concat([df, df1],  axis = 1)
-        
-        
-        
-        #--------------------------------------------------------------------------------------------------------------
-        localMin = []
-        localMax = []
-        for sf in range(len(df)):
-            localMin.append([df['low'][i] for i in argrelextrema(df[:sf+1].low.values, np.less_equal, order=18)[0]])
-            localMax.append([df['high'][i] for i in argrelextrema(df[:sf+1].high.values, np.greater_equal, order=18)[0]])
-    
-    
-        max_length = max(len(inner_list) for inner_list in localMin)
-        
-        for inner_list in localMin:
-            while len(inner_list) < max_length:
-                inner_list.append(0)
-                
-        column_names = [f"localMin{i}" for i in range(max_length)]
-        # Create a DataFrame
-        df1 = pd.DataFrame(localMin, columns=column_names)
-        df= pd.concat([df, df1],  axis = 1)
-        
-        #prevDf = pd.read_csv(stkName+'Data-4.csv')
-        blob = Blob('Daily'+stkName, bucket)
-        buffer = io.BytesIO()
-        blob.download_to_file(buffer)
-        buffer.seek(0)
-    
-        prevDf = pd.read_csv(buffer)
-        
-        prevDf_min_cols = [col for col in prevDf.columns if col.startswith('localMin')]
-        cuurtmincols = [col for col in df.columns if col.startswith('localMin')]
-        
-        if len(prevDf_min_cols) > len(cuurtmincols):
-            for cl in prevDf_min_cols:
-                if cl not in cuurtmincols:
-                    df[cl] = 0
-                    cuurtmincols.append(cl)
-                    
-        elif len(cuurtmincols) > len(prevDf_min_cols):
-            for cl in cuurtmincols:
-                if cl not in prevDf_min_cols:
-                    prevDf[cl] = 0
-                    prevDf_min_cols.append(cl)
-    
-        
-        #---------------------------------------------------------------
-        max_length = max(len(inner_list) for inner_list in localMax)
-        
-        for inner_list in localMax:
-            while len(inner_list) < max_length:
-                inner_list.append(0)
-                
-        column_names = [f"localMax{i}" for i in range(max_length)]
-        # Create a DataFrame
-        df1 = pd.DataFrame(localMax, columns=column_names)
-        df= pd.concat([df, df1],  axis = 1)
-        
-        
-        prevDf_min_cols = [col for col in prevDf.columns if col.startswith('localMax')]
-        cuurtmincols = [col for col in df.columns if col.startswith('localMax')]
-        
-        if len(prevDf_min_cols) > len(cuurtmincols):
-            for cl in prevDf_min_cols:
-                if cl not in cuurtmincols:
-                    df[cl] = 0
-                    cuurtmincols.append(cl)
-                    
-        elif len(cuurtmincols) > len(prevDf_min_cols):
-            for cl in cuurtmincols:
-                if cl not in prevDf_min_cols:
-                    prevDf[cl] = 0
-                    prevDf_min_cols.append(cl)
-                   
-        #---------------------------------------------------------------
-        
-        lfbuySum = []
-        lfsellSum = []
-        
-        for indx in range(len(df)):
-            if indx - 4 < 0:
-                lfbuySum.append(sum(df['buyCount'][:indx+1]))
-                lfsellSum.append(sum(df['sellCount'][:indx+1]))
-            elif indx - 4 >= 0:
-                lfbuySum.append(sum(df['buyCount'][indx-4:indx+1]))
-                lfsellSum.append(sum(df['sellCount'][indx-4:indx+1]))
-                
-        df1 = pd.DataFrame(lfbuySum, columns=['buyCount5C'])
-        df = pd.concat([df, df1],  axis = 1)
-        
-        df1 = pd.DataFrame(lfsellSum, columns=['sellCount5C'])
-        df = pd.concat([df, df1],  axis = 1)
-                
-        
-        #---------------------------------------------------------------
-        
-        finall = []
-        for i in tpo:
-            tobuyss =  sum([t[1] for t in i if t[3] == 'B'])
-            tosellss = sum([t[1] for t in i if t[3] == 'A'])
-            
-            try:
-                finall.append([tobuyss,tosellss, tobuyss/(tobuyss+tosellss), tosellss/(tobuyss+tosellss)])
-            except(ZeroDivisionError):
-                finall.append([0,0, 0, 0])
-            
-        df1 = pd.DataFrame(finall, columns=['topOrderBuy', 'topOrderSell', 'topOrderBuyPercent', 'topOrderSellPercent'])
-        df = pd.concat([df, df1],  axis = 1)
+        df['allLowVA'] = pd.Series([i[0] for i in allvalist])
+        df['allHighVA'] = pd.Series([i[1] for i in allvalist])
+        df['allPOC']  = pd.Series([i[2] for i in allvalist])
+        df['allPOC2']  = pd.Series([i[5] for i in allvalist])
 
-        print(stkName)
-        #df.to_csv(stkName+'Data-3.csv', index=False)
-        #prevDf = pd.read_csv(stkName+'Data-2.csv')
+                
         
-        if prevDf.shape[1] > df.shape[1]:
-            pattern = 'Cluster'
-            matching_columns = [col for col in df.columns if col.startswith(pattern)]
-            last_matching_column = matching_columns[-1]
-            colCount = int(last_matching_column.replace('Cluster',''))+1
-            while prevDf.shape[1] > df.shape[1]:
-                df['Cluster'+str(colCount)] = 0
-                colCount+=1
-                
-            col_cluster_cols = [col for col in df.columns if col.startswith('Cluster')]
-            col_vp_cols = [col for col in df.columns if col.startswith('VolPro')]
-            
-            # Identify other columns
-            other_cols = [col for col in df.columns if col not in col_cluster_cols + col_vp_cols] 
-            
-            # Rearrange columns
-            new_column_order = other_cols+col_cluster_cols+col_vp_cols
-            
-            # Reorder the DataFrame
-            df = df[new_column_order]
-            combined_df = pd.concat([prevDf, df], ignore_index=True)
-            #combined_df.to_csv(stkName+'Data-4.csv', index=False)  #mode='a',
-            #df.to_csv(stkName+'Data-1.csv',mode='a', index=False) 
-            
-        elif df.shape[1] > prevDf.shape[1]:
-            pattern = 'Cluster'
-            matching_columns = [col for col in prevDf.columns if col.startswith(pattern)]
-            last_matching_column = matching_columns[-1]
-            colCount = int(last_matching_column.replace('Cluster',''))+1
-            while df.shape[1] > prevDf.shape[1]:
-                prevDf['Cluster'+str(colCount)] = 0
-                colCount+=1
-                
-            col_cluster_cols = [col for col in prevDf.columns if col.startswith('Cluster')]
-            col_vp_cols = [col for col in prevDf.columns if col.startswith('VolPro')]
-            
-            other_cols = [col for col in prevDf.columns if col not in col_cluster_cols + col_vp_cols]
-            
-            # Rearrange columns
-            new_column_order = other_cols+col_cluster_cols+col_vp_cols
-            
-            # Reorder the DataFrame
-            prevDf = prevDf[new_column_order]
-            
-            combined_df = pd.concat([prevDf, df], ignore_index=True)
-            #combined_df.to_csv(stkName+'Data-4.csv', index=False) 
-            
-            # Display the DataFrame with the new column order
-            #print(df.head())
-        elif df.shape[1] == prevDf.shape[1]:
-            
-            combined_df = pd.concat([prevDf, df], ignore_index=True)
-            #combined_df.to_csv(stkName+'Data-4.csv', index=False) 
-    
-        #stored_data = {'dataFrame': df}
-        stored_data = df.to_dict(orient='records')
-        #mnk = pd.DataFrame(sp)
-     
-    
+        
     previous_stkName = sname
     previous_interv = interv
     
-    vwapCum(combined_df)
-    PPPCum(combined_df) 
-    calculate_ttm_squeeze(combined_df)
-    combined_df['POCAVGCum'] = combined_df['POC'].cumsum() / (combined_df.index + 1)
-    
-    bcha = [[0,0]]
-    for i in range(len(combined_df)-1):
-    	bcha.append([combined_df['topOrderBuy'][i+1] - combined_df['topOrderBuy'][i], combined_df['topOrderSell'][i+1] - combined_df['topOrderSell'][i]])
-    	
-    combined_df['topOrderBuyChange'] = pd.Series([i[0] for i in bcha])
-    combined_df['topOrderSellChange'] = pd.Series([i[1] for i in bcha])
-    
-    df = combined_df
-    
-    last_zero_index = df[df['indes'] == 0].index[-1]
-    tempyDF = df.loc[last_zero_index:].reset_index(drop=True)
-    
-    samp = [col for col in tempyDF.columns if col.startswith('TopOrders_')]
+    fig = make_subplots(rows=3, cols=2, shared_xaxes=True, shared_yaxes=True,
+                            specs=[[{}, {}],
+                                   [{"colspan": 1}, {}],
+                                   [{"colspan": 1}, {}]], #[{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
+                             horizontal_spacing=0.00, vertical_spacing=0.00, # subplot_titles=(stkName +' '+ str(datetime.now().time()))' (Sell:'+str(putDec)+' ('+str(round(NumPut,2))+') | '+'Buy:'+str(CallDec)+' ('+str(round(NumCall,2))+') \n '+' (Sell:'+str(thputDec)+' ('+str(round(thNumPut,2))+') | '+'Buy:'+str(thCallDec)+' ('+str(round(thNumCall,2))+') \n '
+                             column_widths=[0.90,0.10], row_width=[0.125,0.125,75,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 62
 
-    cke = []
-    buys = 0
-    sells = 0
-    fstat = []
-                
-    for i in range(0, len(samp), 5):
-        cke.append(samp[i:i + 5])
-    
-    for i in range(len(tempyDF)):
-        for x in cke:
-            if tempyDF['indes'][i] == tempyDF[x[2]][i]:
-                if tempyDF[x[3]][i] == 0:
-                    sells+=tempyDF[x[1]][i]
-                elif tempyDF[x[3]][i] == 1:
-                    buys+=tempyDF[x[1]][i]
-        fstat.append([buys,sells])
-        buys = 0
-        sells = 0
-    
-    df['topOrderBuyPerCandle'].iloc[last_zero_index:] = pd.Series([i[0] for i in fstat])
-    df['topOrderSellPerCandle'].iloc[last_zero_index:] = pd.Series([i[1] for i in fstat])
-    
-    
-    
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, shared_yaxes=True,
-                        specs=[[{}],
-                               [{}],
-                               [{}],], #[{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
-                         horizontal_spacing=0.00, vertical_spacing=0.00, # subplot_titles=(stkName +' '+ str(datetime.now().time()))' (Sell:'+str(putDec)+' ('+str(round(NumPut,2))+') | '+'Buy:'+str(CallDec)+' ('+str(round(NumCall,2))+') \n '+' (Sell:'+str(thputDec)+' ('+str(round(thNumPut,2))+') | '+'Buy:'+str(thCallDec)+' ('+str(round(thNumCall,2))+') \n '
-                         row_width=[0.10,0.15,0.75,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 
+        
 
-    
-    
     fig.add_trace(go.Candlestick(x=pd.Series([i for i in range(len(df))]),
                                  open=df['open'],
                                  high=df['high'],
                                  low=df['low'],
                                  close=df['close'],
                                  name="OHLC",
-                                 hovertext=df['time'].tolist()),
+                                 hovertext=df['formatted_date'].tolist()),
                   row=1, col=1)
 
-
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['POC'], mode='lines',name='POC', hovertext=df['time'].tolist(), marker_color='#0000FF'))
-    
-    
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['100ema'], mode='lines', opacity=0.50, name='100ema',marker_color='rgba(0,0,0)'))
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['200ema'], mode='lines', opacity=0.50,name='200ema',marker_color='rgba(0,0,0)'))
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['50ema'], mode='lines', opacity=0.50,name='50ema',marker_color='rgba(0,0,0)'))
-
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['LowVA'], mode='lines', opacity=0.5, name='LowVA', hovertext=df['time'].tolist(), line=dict(color='black')))
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['HighVA'], mode='lines', opacity=0.5, name='HighVA', hovertext=df['time'].tolist(), line=dict(color='black')))
+    #fig.add_trace(go.Scatter(x=df.index, y=df['POC2'], mode='lines',name='POC', hovertext=df['time'].tolist(), marker_color='#0000FF'))
+    #fig.add_trace(go.Scatter(x=df.index, y=df['LowVA'], mode='lines', opacity=0.3, name='LowVA', line=dict(color='purple')))
+    #fig.add_trace(go.Scatter(x=df.index, y=df['HighVA'], mode='lines', opacity=0.3, name='HighVA', line=dict(color='purple')))
 
 
+    fig.add_trace(go.Scatter(x=df.index, y=df['allPOC'], mode='lines',name='allPOC', hovertext=df['time'].tolist(), marker_color='#0000FF'))
+    fig.add_trace(go.Scatter(x=df.index, y=df['allPOC2'], mode='lines',name='allPOC2', hovertext=df['time'].tolist(), marker_color='#0000FF'))
+    fig.add_trace(go.Scatter(x=df.index, y=df['allHighVA'], mode='lines', opacity=0.3, name='allHighVA', line=dict(color='purple')))
+    fig.add_trace(go.Scatter(x=df.index, y=df['allLowVA'], mode='lines', opacity=0.3, name='allLowVA', line=dict(color='purple')))
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['uppervwapAvg'], mode='lines', opacity=0.5, name='uppervwapAvg', hovertext=df['time'].tolist() ))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['lowervwapAvg'], mode='lines', opacity=0.5,name='lowervwapAvg', hovertext=df['time'].tolist()))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapAvg'], mode='lines', opacity=0.5, name='vwapAvg', hovertext=df['time'].tolist() ))
-
-
-
-    #tst = pd.Series([df['topOrderBuy'][i] - df['topOrderSell'][i] for i in  range(len(df))])
-
-    df['topDiff'] = df['topOrderBuy'] - df['topOrderSell']
-    
-    df['topDiffPerCandle'] = df['topOrderBuyPerCandle'] - df['topOrderSellPerCandle']
-    #df['diff5c'] = df['buyCount5C'] - df['sellCount5C']
-    coll = [     'teal' if i > 0
-                else 'crimson' if i < 0
-                else 'gray' for i in df['topDiff']] #tst  df['buySellDif']
-
-    colll = [     'teal' if i > 0
-                else 'crimson' if i < 0
-                else 'gray' for i in df['topDiffPerCandle']]
-    
-    #fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topDiff'], marker_color=coll, name='topOrderDifference'), row=3, col=1) #tst
-    #fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['diff5c'], marker_color=colll, name='diff5c'), row=2, col=1) #tst
-    
-    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topDiffPerCandle'], marker_color=colll, name='topDiffPerCandle', hovertext=df['time'].tolist()), row=2, col=1) #tst
-
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuyPercent'], marker_color='teal', name='topOrderBuyPercent'), row=2, col=1) #tst
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSellPercent'], marker_color='crimson', name='topOrderSellPercent'), row=2, col=1)
-
-    #fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuyPerCandle'], marker_color='teal', name='topOrderBuyPerCandle', hovertext=df['time'].tolist()), row=3, col=1) #tst
-    #fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSellPerCandle'], marker_color='crimson', name='topOrderSellPerCandle', hovertext=df['time'].tolist()), row=3, col=1) #tst
-
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderBuy'], marker_color='teal'), row=3, col=1) #tst
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['topOrderSell'], marker_color='crimson'), row=3, col=1)
-    '''
-    fig.add_trace(
-        go.Bar(
-            x=pd.Series([i for i in range(len(df))]),
-            y=df['topOrderBuy'],
-            #textposition='auto',
-            #orientation='h',
-            #width=0.2,
-            marker_color='teal',
-            hovertext=pd.Series([i for i in df['topOrderBuy']]),   
-        ),
-         row=3, col=1
+    fig.add_trace(go.Bar(
+        x=[i[1] for i in temphs[0][::-1]],  # bar length 
+        y=[i[0] for i in temphs[0][::-1]],  # y-axis labels
+        orientation='h',
+        #text=[str(i[1]) for i in bbbb[1]],  # show index 1 as bar label
+        textposition='auto',
+        marker_color='teal',  # static color for now
+        hovertext=[f"Edge: {i[0]} - {i[3]}" for i in temphs[0][::-1]]  # custom hover text
+    ),
+        row=1, col=2
     )
+
+
+    if len(callCandImb) > 0:
+        fig.add_trace(go.Candlestick(
+            x=callCandImb,  # Directly use the index list
+            open=df.loc[callCandImb, 'open'].values,  # Access using .loc[]
+            high=df.loc[callCandImb, 'high'].values,
+            low=df.loc[callCandImb, 'low'].values,
+            close=df.loc[callCandImb, 'close'].values,
+            increasing={'line': {'color': 'black'}},
+            decreasing={'line': {'color': 'black'}},
+            hovertext=[
+                f"({df.loc[i, 'buys']}) {round(df.loc[i, 'buyPercent'], 2)} Bid "
+                f"({df.loc[i, 'sells']}) {round(df.loc[i, 'sellPercent'], 2)} Ask <br>"
+                f"{df.loc[i, 'allDiff']} <br> TopOrders: <br>"
+                f"({df.loc[i, 'topBuys']}) {round(df.loc[i, 'topBuysPercent'], 2)} Bid "
+                f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask"
+                for i in callCandImb
+            ],
+            hoverlabel=dict(
+                 bgcolor="black",
+                 font=dict(color="white", size=13),
+                 ),
+            name='Sellimbalance' ),
+        row=1, col=1)
+
+        
+    if len(putCandImb) > 0:
+        fig.add_trace(go.Candlestick(
+            x=putCandImb,  # Directly use the index list
+            open=df.loc[putCandImb, 'open'].values,  # Access using .loc[]
+            high=df.loc[putCandImb, 'high'].values,
+            low=df.loc[putCandImb, 'low'].values,
+            close=df.loc[putCandImb, 'close'].values,
+            increasing={'line': {'color': '#16FF32'}},
+            decreasing={'line': {'color': '#16FF32'}},
+            hovertext=[
+                f"({df.loc[i, 'buys']}) {round(df.loc[i, 'buyPercent'], 2)} Bid "
+                f"({df.loc[i, 'sells']}) {round(df.loc[i, 'sellPercent'], 2)} Ask <br>"
+                f"{df.loc[i, 'allDiff']} <br> TopOrders: <br>"
+                f"({df.loc[i, 'topBuys']}) {round(df.loc[i, 'topBuysPercent'], 2)} Bid "
+                f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask"
+                for i in putCandImb
+            ],
+            hoverlabel=dict(
+                bgcolor="#2CA02C",
+                font=dict(color="white", size=13),
+            ),
+            name='BuyImbalance'
+        ), row=1, col=1)
+        
+
+    combined_trades_sorted = combined_trades.sort_values(by=combined_trades.columns[1], ascending=False)
+    combined_trades_sorted = combined_trades_sorted.iloc[:500]
+    prices = combined_trades_sorted.iloc[:, 0].sort_values().tolist()  # Sorted list of prices
+
     
-    fig.add_trace(
-        go.Bar(
-            x=pd.Series([i for i in range(len(df))]),
-            y=df['topOrderSell'],
-            #textposition='auto',
-            #orientation='h',
-            #width=0.2,
-            marker_color='crimson',
-            hovertext=pd.Series([i for i in df['topOrderSell']]),   
-        ),
-         row=3, col=1
-    )
-    '''
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['POC'].cumsum() / (df.index + 1), mode='lines',name='POCAVG',marker_color='black'))
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['DailyPOCAVG'], mode='lines',name='DailyPOCAVG',marker_color='black'))
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['DailyLowVAAVG'], mode='lines',name='DailyLowVAAVG',marker_color='black'))
-    #fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['DailyHighVAAVG'], mode='lines',name='DailyHighVAAVG',marker_color='black'))
+    differences = [abs(prices[i + 1] - prices[i]) for i in range(len(prices) - 1)]
+    average_difference = sum(differences) / len(differences)
 
+    # Step 3: Find clusters
+    cdata = find_clusters(prices, average_difference)
 
+    mazz = max(len(cluster) for cluster in cdata)
+    clustercount = 7
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_2Cum'], mode='lines', opacity=0.8, name='UPPERVWAP2', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N2Cum'], mode='lines', opacity=0.8, name='LOWERVWAP2', line=dict(color='black')))
-
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_25Cum'], mode='lines', opacity=0.8, name='UPPERVWAP2.5', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N25Cum'], mode='lines', opacity=0.8, name='LOWERVWAP2.5', line=dict(color='black')))
-   
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_1Cum'], mode='lines', opacity=0.8, name='UPPERVWAP1', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N1Cum'], mode='lines', opacity=0.8, name='LOWERVWAP1', line=dict(color='black')))
+    for cluster in cdata:
+        if len(cluster) >= clustercount:
+            bidCount = 0
+            askCount = 0
             
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_15Cum'], mode='lines', opacity=0.8, name='UPPERVWAP1.5', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N15Cum'], mode='lines', opacity=0.8, name='LOWERVWAP1.5', line=dict(color='black')))
-
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_0Cum'], mode='lines', opacity=0.8, name='UPPERVWAP0.5', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N0Cum'], mode='lines', opacity=0.8, name='LOWERVWAP0.5', line=dict(color='black')))
-
-
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_075Cum'], mode='lines', opacity=0.8, name='UPPERVWAP0.75', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N075Cum'], mode='lines', opacity=0.8, name='LOWERVWAP0.75', line=dict(color='black')))
+            price_low = min(cluster)
+            price_high = max(cluster)
             
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_125Cum'], mode='lines', opacity=0.8, name='UPPERVWAP1.25', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N125Cum'], mode='lines', opacity=0.8, name='LOWERVWAP1.25', line=dict(color='black')))
+            
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_175Cum'], mode='lines', opacity=0.8, name='UPPERVWAP1.75', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N175Cum'], mode='lines', opacity=0.8, name='LOWERVWAP1.75', line=dict(color='black')))
+            for _, row in combined_trades_sorted.iterrows():
+                price = row.iloc[0]
+                volume = row.iloc[1]
+                side = row.iloc[5]
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_225Cum'], mode='lines', opacity=0.8, name='UPPERVWAP2.25', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N225Cum'], mode='lines', opacity=0.8, name='LOWERVWAP2.25', line=dict(color='black')))
+                if price_low <= price <= price_high:#cluster[-1] <= price <= cluster[0]:  # price within cluster range
+                    if side == 'B':
+                        bidCount += volume
+                    elif side == 'A':
+                        askCount += volume
 
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_025Cum'], mode='lines', opacity=0.8, name='UPPERVWAP0.25', line=dict(color='black')))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['STDEV_N025Cum'], mode='lines', opacity=0.8, name='LOWERVWAP0.25', line=dict(color='black')))
+            totalVolume = bidCount + askCount
+            if totalVolume > 0:
+                askDec = round(askCount / totalVolume, 2)
+                bidDec = round(bidCount / totalVolume, 2)
+            else:
+                askDec = bidDec = 0
+
+            opac = round((len(cluster) / mazz) / 2, 2)
+            fillcolor = (
+                "crimson" if askCount > bidCount else
+                "teal" if bidCount > askCount else
+                "gray"
+            )
+            linecolor = f'rgba(220,20,60,{opac})' if askCount > bidCount else (
+                        f'rgba(0,139,139,{opac})' if bidCount > askCount else 'gray')
+
+            # Rectangle for cluster zone
+            fig.add_shape(
+                type="rect",
+                y0=cluster[0], y1=cluster[-1], x0=-1, x1=len(df),
+                fillcolor=fillcolor,
+                opacity=opac
+            )
+
+            # Upper line
+            fig.add_trace(go.Scatter(
+                x=df.index,
+                y=[cluster[0]] * len(df),
+                line_color=linecolor,
+                text=f"{cluster[0]} ({totalVolume}) ({len(cluster)}) Ask:({askDec}) {askCount} | Bid: ({bidDec}) {bidCount}",
+                textposition="bottom left",
+                name=f"{cluster[0]} ({totalVolume}) ({len(cluster)}) Ask:({askDec}) {askCount} | Bid: ({bidDec}) {bidCount}",
+                showlegend=False,
+                mode='lines'
+            ), row=1, col=1)
+
+            # Lower line
+            fig.add_trace(go.Scatter(
+                x=df.index,
+                y=[cluster[-1]] * len(df),
+                line_color=linecolor,
+                text=f"{cluster[-1]} ({totalVolume}) ({len(cluster)}) Ask:({askDec}) {askCount} | Bid: ({bidDec}) {bidCount}",
+                textposition="bottom left",
+                name=f"{cluster[-1]} ({totalVolume}) ({len(cluster)}) Ask:({askDec}) {askCount} | Bid: ({bidDec}) {bidCount}",
+                showlegend=False,
+                mode='lines'
+            ), row=1, col=1)
+            
+            
+    fig.update_layout(title=datetime.now().strftime("%m/%d/%Y %H:%M"),
+                          paper_bgcolor='#E5ECF6',
+                          showlegend=False,
+                          height=880,
+                          xaxis_rangeslider_visible=False,)    
+
+    fig.update_xaxes(autorange="reversed", row=1, col=2)            
+    #fig.show(config={'modeBarButtonsToAdd': ['drawline']})
+
            
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayPOC'], mode='lines', name='prevDayPOC', opacity=0.8, line=dict(color='orange'),  hovertext=df['time'].tolist()))
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayHVA'], mode='lines', name='prevDayHVA', opacity=0.8, line=dict(color='green'),  hovertext=df['time'].tolist()))   
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['prevDayLVA'], mode='lines', name='prevDayLVA', opacity=0.8, line=dict(color='purple'),  hovertext=df['time'].tolist())) 
-
-    fig.add_trace(go.Scatter(x=pd.Series([i for i in range(len(df))]), y=df['vwapCum'], mode='lines', name='vwapCum', line=dict(color='crimson')))
-    
-    colors = ['maroon']
-    for val in range(1,len(df['Momentum'])):
-        if df['Momentum'][val] > 0:
-            color = 'teal'
-            if df['Momentum'][val] > df['Momentum'][val-1]:
-                color = '#54C4C1' 
-        else:
-            color = 'maroon'
-            if df['Momentum'][val] < df['Momentum'][val-1]:
-                color='crimson' 
-        colors.append(color)
-    fig.add_trace(go.Bar(x=pd.Series([i for i in range(len(df))]), y=df['Momentum'], marker_color =colors ), row=3, col=1)
-
-    fig.update_xaxes(
-        range=[int(len(df) * 0.95), len(df)],
-        row=2, col=1
-    )
-    # Update y-axis range for the specific subplot
-    fig.update_yaxes(
-        range=[
-            min([i for i in combined_df['topDiffPerCandle'][int(len(df) * 0.95):len(df)]]), 
-            max([i for i in combined_df['topDiffPerCandle'][int(len(df) * 0.95):len(df)]])
-        ],
-        row=2, col=1
-    )
-
-    fig.update_yaxes(
-        range=[
-            min([i for i in combined_df['Momentum'][int(len(df) * 0.95):len(df)]]), 
-            max([i for i in combined_df['Momentum'][int(len(df) * 0.95):len(df)]])
-            #min([i for i in combined_df['topOrderBuyPerCandle'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['topOrderSellPerCandle'][int(len(df) * 0.90):len(df)]]), 
-            #max([i for i in combined_df['topOrderSellPerCandle'][int(len(df) * 0.90):len(df)]] + [i for i in combined_df['topOrderBuyPerCandle'][int(len(df) * 0.90):len(df)]])
-        ],
-        row=3, col=1
-    )
-
-    '''
-    fig.update_yaxes(
-        range=[
-            min([i for i in combined_df['topDiff'][int(len(df) * 0.90):len(df)]]), 
-            max([i for i in combined_df['topDiff'][int(len(df) * 0.90):len(df)]])
-        ],
-        row=3, col=1
-    )
-    '''
-    fig.update_layout(title=stkName+' Chart '+ str(datetime.now().time()) + ' ' + tpString ,
-                      paper_bgcolor='#E5ECF6',
-                      showlegend=False,
-                      height=880,
-                      xaxis_rangeslider_visible=False,
-                      xaxis=dict(range=[int(len(df)*0.95), len(df)]),
-                      yaxis=dict(range=[min([i for i in combined_df['low'][int(len(df)*0.95):len(df)]]), max([i for i in combined_df['high'][int(len(df)*0.95):len(df)]])])) #showlegend=False
-    
-    fig.update_xaxes(showticklabels=False, row=3, col=1)
-    
     if interval_time == initial_inter:
         interval_time = subsequent_inter
         
     if stkName != previous_stkName  or interv != previous_interv:
         interval_time = initial_inter
+
+
+    return stored_data, fig, previous_stkName, previous_interv, interval_time
         
-
-    # Show the chart
-    #fig.show() 
-    
-    return fig, stored_data, interval_time, previous_stkName, previous_interv#, previous_stkName
-
-if __name__ == '__main__': 
+if __name__ == '__main__':
     app.run_server(debug=False, host='0.0.0.0', port=8080)
-    #app.run_server(debug=False, use_reloader=False)
-        
-      
-        
-        
-     
-    
-    
-      
-
-
+    #app.run_server(debug=False, use_reloader=False)        
