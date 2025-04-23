@@ -614,17 +614,23 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
         fs = gcsfs.GCSFileSystem()
         
         # Reading directly
-        #tradeDf = pd.read_parquet(
-        #    f'gs://stockapp-storage/{stkName}_combined_trades.parquet',
-        #    filesystem=fs,
-        #    engine='pyarrow'
-        #)
+        tradeDf = pd.read_parquet(
+            f'gs://stockapp-storage/{stkName}_combined_trades.parquet',
+            filesystem=fs,
+            engine='pyarrow'
+        )
         
         #tradeDf = duckdb.read_parquet(f"gs://stockapp-storage/{stkName}_combined_trades.parquet")
-        tradeDf = duckdb.read_parquet("https://storage.googleapis.com/stockapp-storage/NQ_combined_trades.parquet?x-goog-signature=1918be266c4ed0c1e1fb76ba5b971044d8e6fa0c9682821df5484d7964dcbe819dbf2acff7876131016f558ed0e937382b79e09181e954b4b0be9fc7339eac3ff5a5cf41baf9192f9a6819065944f9ab61045fba9f84a7e6a9b7f8d55e5bf754afe61a3096137204556ca618358c7e410030332163c12d0a2c39354694b743051f68612bc90aa452e10af00fa0810a3e3b9fa30cc1dead57a37a3a7df0327c0fdbd2b3e752e21bc8facb8bc1724431685a4b51c2cffcd3b984b9ee24b1c8cdcba1002474344524127adfab1222b48e9f7c2d4ac19cfa686dee1aa69eda8bf06e04d2e634e732e5ddf06beb2de6dc361a15594f834c166c987eff9e399571c8aa&x-goog-algorithm=GOOG4-RSA-SHA256&x-goog-credential=stockapp-401615%40appspot.gserviceaccount.com%2F20250423%2Fus%2Fstorage%2Fgoog4_request&x-goog-date=20250423T180354Z&x-goog-expires=43200&x-goog-signedheaders=host")
-
+        #tradeDf = duckdb.read_parquet("https://storage.googleapis.com/stockapp-storage/NQ_combined_trades.parquet?x-goog-signature=1918be266c4ed0c1e1fb76ba5b971044d8e6fa0c9682821df5484d7964dcbe819dbf2acff7876131016f558ed0e937382b79e09181e954b4b0be9fc7339eac3ff5a5cf41baf9192f9a6819065944f9ab61045fba9f84a7e6a9b7f8d55e5bf754afe61a3096137204556ca618358c7e410030332163c12d0a2c39354694b743051f68612bc90aa452e10af00fa0810a3e3b9fa30cc1dead57a37a3a7df0327c0fdbd2b3e752e21bc8facb8bc1724431685a4b51c2cffcd3b984b9ee24b1c8cdcba1002474344524127adfab1222b48e9f7c2d4ac19cfa686dee1aa69eda8bf06e04d2e634e732e5ddf06beb2de6dc361a15594f834c166c987eff9e399571c8aa&x-goog-algorithm=GOOG4-RSA-SHA256&x-goog-credential=stockapp-401615%40appspot.gserviceaccount.com%2F20250423%2Fus%2Fstorage%2Fgoog4_request&x-goog-date=20250423T180354Z&x-goog-expires=43200&x-goog-signedheaders=host")
+        #import gcsfs
+        #import duckdb
+        
+        #fs = gcsfs.GCSFileSystem()
+        #fs.get('stockapp-storage/NQ_combined_trades.parquet', '/tmp/temp.parquet')
+        #tradeDf = duckdb.read_parquet('/tmp/temp.parquet')
         
         stored_data = {'df': prevDf.values.tolist(), 'trades': tradeDf.values.tolist()}
+        del tradeDf
             
         with ThreadPoolExecutor(max_workers=3) as executor:
             #if sname != previous_stkName:
@@ -717,7 +723,7 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
 
            
 
-        combined_trades = pd.concat([tradeDf, pd.DataFrame(AllTrades, columns=['0','1','2','3','4','5','6'])], ignore_index=True)
+        combined_trades = pd.concat([pd.DataFrame(stored_data['trades'], columns=['0','1','2','3','4','5','6']), pd.DataFrame(AllTrades, columns=['0','1','2','3','4','5','6'])], ignore_index=True)
 
 
         dtimeEpoch_np = np.array(df_resampled2['timestamp'].dropna().values)
