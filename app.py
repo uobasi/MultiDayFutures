@@ -216,36 +216,6 @@ def find_clusters(numbers, threshold):
     return clusters
 
 
-def read_parquet_in_chunks(bucket_name, blob_path, chunk_size=1000000):
-    """Read large parquet files in chunks to reduce memory usage"""
-    fs = gcsfs.GCSFileSystem()
-    path = f'gs://{bucket_name}/{blob_path}'
-    
-    # First just get the total number of rows
-    file_info = fs.info(path)
-    file_size = file_info['size']
-    
-    # Use PyArrow for more memory-efficient reading
-    import pyarrow.parquet as pq
-    
-    # Open the file
-    dataset = pq.ParquetDataset(path, filesystem=fs)
-    table = dataset.read()
-    
-    # Process in chunks
-    total_rows = len(table)
-    chunks = []
-    
-    for i in range(0, total_rows, chunk_size):
-        end = min(i + chunk_size, total_rows)
-        chunk = table.slice(i, end - i).to_pandas()
-        # Process chunk here or append to list
-        chunks.append(chunk)
-    
-    # Combine chunks if needed
-    if len(chunks) > 0:
-        return pd.concat(chunks, ignore_index=True)
-    return pd.DataFrame()
 
 symbolNumList =  ['4916', '42005804', '42003068', '134373', '287', '42009162', '42007178', '42008377']
 symbolNameList = ['ES', 'NQ', 'YM','CL', 'GC', 'RTY', 'MBT', 'MET']
@@ -269,7 +239,7 @@ prefix = "oldData/NQ"  # Filter files in 'oldData/' folder containing "NQ"
 bucket = client.bucket(bucket_name)
 
 
-
+import duckdb
 #from google.api_core.exceptions import NotFound
 from dash import Dash, dcc, html, Input, Output, callback, State
 initial_inter = 1800000  # Initial interval #210000#250000#80001
@@ -641,15 +611,17 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
         # Convert to DataFrame using StringIO
         prevDf = pd.read_csv(StringIO(csv_data))
         
-        #fs = gcsfs.GCSFileSystem()
+        fs = gcsfs.GCSFileSystem()
         
         # Reading directly
         #tradeDf = pd.read_parquet(
-            #f'gs://stockapp-storage/{stkName}_combined_trades.parquet',
-            #filesystem=fs,
-            #engine='pyarrow'
+        #    f'gs://stockapp-storage/{stkName}_combined_trades.parquet',
+        #    filesystem=fs,
+        #    engine='pyarrow'
         #)
-        tradeDf = read_parquet_in_chunks('stockapp-storage', f'{stkName}_combined_trades.parquet')
+        
+        tradeDf = duckdb.read_parquet(f"gs://stockapp-storage/{stkName}_combined_trades.parquet")
+
         
         stored_data = {'df': prevDf.values.tolist(), 'trades': tradeDf.values.tolist()}
             

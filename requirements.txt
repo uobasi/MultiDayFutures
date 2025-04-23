@@ -9,3 +9,4 @@ google-cloud-storage==2.6.0
 databento==0.24.0
 gcsfs==2025.3.2
 pyarrow==16.1.0
+duckdb==1.2.2
