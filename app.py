@@ -32,6 +32,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor  
 from io import StringIO  
 from scipy.stats import percentileofscore
+import gc
 
 
 def download_data(bucket_name, blob_name):
@@ -631,6 +632,7 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
         
         stored_data = {'df': prevDf.values.tolist(), 'trades': tradeDf.values.tolist()}
         del tradeDf
+        gc.collect()
             
         with ThreadPoolExecutor(max_workers=3) as executor:
             #if sname != previous_stkName:
