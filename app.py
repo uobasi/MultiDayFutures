@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+Created on Sun Apr 27 15:58:00 2025
+
+@author: uobas
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Tue Apr 22 15:24:13 2025
 
 @author: UOBASUB
@@ -27,12 +34,12 @@ import plotly.io as pio
 pio.renderers.default='browser'
 import bisect
 #from collections import defaultdict
-import gcsfs
+#import gcsfs
 import re
 from concurrent.futures import ThreadPoolExecutor  
 from io import StringIO  
 from scipy.stats import percentileofscore
-import gc
+#import gc
 
 
 def download_data(bucket_name, blob_name):
@@ -240,7 +247,7 @@ prefix = "oldData/NQ"  # Filter files in 'oldData/' folder containing "NQ"
 bucket = client.bucket(bucket_name)
 
 
-import duckdb
+#import duckdb
 #from google.api_core.exceptions import NotFound
 from dash import Dash, dcc, html, Input, Output, callback, State
 initial_inter = 1800000  # Initial interval #210000#250000#80001
@@ -359,250 +366,9 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
         stored_data = None
     
         
-    
-    if stored_data is not None:
-        print('NotNew')
-        #combined_df = pd.DataFrame(stored_data['df'], columns=[0,1,2,3,4,5,6,7,8,9,10,11])
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            #if sname != previous_stkName:
-            # Download everything when stock name changes
-            futures = [
-                executor.submit(download_data, bucket, 'FuturesOHLC' + str(symbolNum)),
-                executor.submit(download_data, bucket, 'FuturesTrades' + str(symbolNum)),]
-                #executor.submit(download_daily_data, bucket, stkName)]
-            
-            FuturesOHLC, FuturesTrades = [future.result() for future in futures] #, prevDf
+    ctime = datetime.now().strftime("%m/%d/%Y %H:%M")
 
-
-        # Process data with pandas directly
-        FuturesOHLC = pd.read_csv(io.StringIO(FuturesOHLC), header=None)
-        FuturesTrades = pd.read_csv(io.StringIO(FuturesTrades), header=None)
-        
-                
-                
-        aggs = [ ] 
-        for row in FuturesOHLC.itertuples(index=False):
-            # Extract values from the row, where row[0] corresponds to the first column, row[1] to the second, etc.
-            hourss = datetime.fromtimestamp(int(row[0]) // 1000000000).hour
-            hourss = f"{hourss:02d}"  # Ensure it's a two-digit string
-            minss = datetime.fromtimestamp(int(row[0]) // 1000000000).minute
-            minss = f"{minss:02d}"  # Ensure it's a two-digit string
-            
-            # Construct the time string
-            opttimeStamp = f"{hourss}:{minss}:00"
-            
-            # Append the transformed row data to the aggs list
-            aggs.append([
-                row[2] / 1e9,  # Convert the value at the third column (open)
-                row[3] / 1e9,  # Convert the value at the fourth column (high)
-                row[4] / 1e9,  # Convert the value at the fifth column (low)
-                row[5] / 1e9,  # Convert the value at the sixth column (close)
-                int(row[6]),   # Volume
-                opttimeStamp,  # The formatted timestamp
-                int(row[0]),   # Original timestamp
-                int(row[1])    # Additional identifier or name
-            ])
-        
-        df2 = pd.DataFrame(aggs, columns = ['open', 'high', 'low', 'close', 'volume', 'time', 'timestamp', 'name',])
-            
-        df2['strTime'] = df2['timestamp'].apply(lambda x: pd.Timestamp(int(x) // 10**9, unit='s', tz='EST') )
-        
-        df2.set_index('strTime', inplace=True)
-        df2['volume'] = pd.to_numeric(df2['volume'], downcast='integer')
-        df_resampled2 = df2.resample(interv+'min').agg({
-            'timestamp': 'first',
-            'name': 'last',
-            'open': 'first',
-            'high': 'max',
-            'low': 'min',
-            'close': 'last',
-            'time': 'first',
-            'volume': 'sum'
-        })
-        
-        df_resampled2.reset_index(drop=True, inplace=True)
-        df_resampled2.insert(0, "index_count", df_resampled2.index)
-        df_resampled2.dropna(inplace=True)
-        df_resampled2.reset_index(drop=True, inplace=True)
-        
-        timestamps = FuturesTrades.iloc[:, 0].values
-            
-        # Convert timestamps and extract hours and minutes vectorized
-        seconds_timestamps = timestamps // 1000000000
-        dt_array = np.array([datetime.fromtimestamp(ts) for ts in seconds_timestamps])
-
-        # Format hours and minutes
-        hours = np.array([f"{dt.hour:02d}" for dt in dt_array])
-        minutes = np.array([f"{dt.minute:02d}" for dt in dt_array])
-
-        # Create formatted timestamps
-        opt_timestamps = np.array([f"{h}:{m}:00" for h, m in zip(hours, minutes)])
-
-        # Create indices array
-        indices = np.arange(len(timestamps))
-
-        # Create the AllTrades array efficiently
-        AllTrades = np.column_stack([
-            FuturesTrades.iloc[:, 1].values / 1e9,  # Scale by 1e9
-            FuturesTrades.iloc[:, 2].values,
-            timestamps,
-            np.zeros(len(timestamps), dtype=int),
-            indices,
-            FuturesTrades.iloc[:, 3].values,
-            opt_timestamps
-        ])
-        
-        
-        combined_trades = pd.concat([pd.DataFrame(stored_data['trades'], columns=['0','1','2','3','4','5','6']), pd.DataFrame(AllTrades, columns=['0','1','2','3','4','5','6'])], ignore_index=True)
-
-
-        dtimeEpoch_np = np.array(df_resampled2['timestamp'].dropna().values)
-        dtime_np = np.array(df_resampled2['time'].dropna().values)
-        tradeEpoch_np = np.array([i[2] for i in AllTrades])  # Extract timestamp from trades
-
-        # Find the nearest tradeEpoch index using NumPy vectorization
-        indices = np.searchsorted(tradeEpoch_np, dtimeEpoch_np, side='left')
-
-        # Create `make` list using NumPy
-        make = np.column_stack((dtimeEpoch_np, dtime_np, indices)).tolist()
-
-        # Faster dictionary initialization using dictionary comprehension
-        timeDict = {dtime_np[i]: [0, 0, 0] for i in range(len(dtime_np))}
-
-        # Initialize troPerCandle and footPrint as empty lists
-        troPerCandle = []
-        #footPrint = []
-
-        all_trades_np = np.array(AllTrades, dtype=object)
-
-        for tr in range(len(make)):
-            start_idx = make[tr][2]
-            end_idx = make[tr+1][2] if tr+1 < len(make) else len(AllTrades)
-
-            # Get trades for this time window
-            tempList = all_trades_np[start_idx:end_idx]
-
-            # Extract prices for binning
-            if len(tempList) > 0:
-
-                # Store top 100 largest trades (fast NumPy sorting)
-                sorted_trades = tempList[np.argsort(tempList[:, 1].astype(int))][-100:].tolist()
-                troPerCandle.append([make[tr][1], sorted_trades])
-
-                # Aggregate buy/sell/neutral trade volumes
-                for row in tempList:
-                    if row[5] == "B":
-                        timeDict[make[tr][1]][0] += row[1]
-                    elif row[5] == "A":
-                        timeDict[make[tr][1]][1] += row[1]
-                    elif row[5] == "N":
-                        timeDict[make[tr][1]][2] += row[1]
-                        
-        timeDict_np = np.array(list(timeDict.values()))
-        sums = timeDict_np.sum(axis=1)
-        ratios = np.divide(timeDict_np, sums[:, None], where=sums[:, None] != 0)  # Avoid division by zero
-
-        timeFrame = [[timee, ""] + timeDict[timee] + ratios[i].tolist() for i, timee in enumerate(timeDict)]  
-
-
-        topBuys = []
-        topSells = []
-
-        # Iterate through troPerCandle and compute values
-        for i in troPerCandle:
-            tobuyss = sum(x[1] for x in i[1] if x[5] == 'B')  # Sum buy orders
-            tosellss = sum(x[1] for x in i[1] if x[5] == 'A')  # Sum sell orders
-            
-            topBuys.append(tobuyss)  # Store buy values
-            topSells.append(tosellss)  # Store sell values
-              
-
-        df_resampled2['topBuys'] = topBuys
-        df_resampled2['topSells'] = topSells
-        df_resampled2['topDiff'] = df_resampled2['topBuys'] - df_resampled2['topSells']
-        df_resampled2['topDiffNega'] = ((df_resampled2['topBuys'] - df_resampled2['topSells']).apply(lambda x: x if x < 0 else np.nan)).abs()
-        df_resampled2['topDiffPost'] = (df_resampled2['topBuys'] - df_resampled2['topSells']).apply(lambda x: x if x > 0 else np.nan)
-
-        df_resampled2['percentile_topBuys'] =  [percentileofscore(df_resampled2['topBuys'][:i+1], df_resampled2['topBuys'][i], kind='mean') for i in range(len(df_resampled2))]
-        df_resampled2['percentile_topSells'] = [percentileofscore(df_resampled2['topSells'][:i+1], df_resampled2['topSells'][i], kind='mean') for i in range(len(df_resampled2))] 
-
-        df_resampled2['percentile_Posdiff'] =  [percentileofscore(df_resampled2['topDiffPost'][:i+1].dropna(), df_resampled2['topDiffPost'][i], kind='mean') if not np.isnan(df_resampled2['topDiffPost'][i]) else None for i in range(len(df_resampled2))]
-        df_resampled2['percentile_Negdiff'] =  [percentileofscore(df_resampled2['topDiffNega'][:i+1].dropna(), df_resampled2['topDiffNega'][i], kind='mean') if not np.isnan(df_resampled2['topDiffNega'][i]) else None for i in range(len(df_resampled2))]
-
-        df_resampled2['allDiff'] = [i[2]-i[3] for i in timeFrame]
-        df_resampled2['buys'] = [i[2] for i in timeFrame]
-        df_resampled2['sells'] = [i[3] for i in timeFrame]
-        
-        df = pd.concat([pd.DataFrame(stored_data['df'], columns=list(df_resampled2.columns)), df_resampled2], ignore_index=True)
-        
-        df['datetime'] = pd.to_datetime(df['timestamp'], unit='ns')
-
-        # Convert to Eastern Time (automatically handles EST/EDT)
-        df['datetime_est'] = df['datetime'].dt.tz_localize('UTC').dt.tz_convert('America/New_York')
-
-        # Format as MM/DD/YYYY HH:MM in Eastern Time
-        df['formatted_date'] = df['datetime_est'].dt.strftime('%m/%d/%Y %H:%M')
-
-        df['buyPercent'] = df['buys'] / (df['buys']+df['sells'])
-        df['sellPercent'] = df['sells'] / (df['buys']+df['sells'])
-
-        df['topBuysPercent'] = ((df['topBuys']) / (df['topBuys']+df['topSells']))
-        df['topSellsPercent'] = ((df['topSells']) / (df['topBuys']+df['topSells']))
-
-
-        putCandImb =  df.index[
-            (df['topBuys'] > df['topSells']) &
-            (df['percentile_topBuys'] > 95) &
-            (df['topBuysPercent'] >= 0.65)
-        ].tolist()
-        callCandImb = df.index[
-            (df['topSells'] > df['topBuys']) &
-            (df['percentile_topSells'] > 95) &
-            (df['topSellsPercent'] >= 0.65)
-        ].tolist()
-        
-        
-        dtime = df['time'].dropna().values.tolist()
-        dtimeEpoch = df['timestamp'].dropna().values.tolist()
-        tradeEpoch = combined_trades.iloc[:, 2].tolist()
-
-        alltimeDict = {}
-        allmake = []
-        for ttm in range(len(dtimeEpoch)):
-            
-            allmake.append([dtimeEpoch[ttm],dtime[ttm],bisect.bisect_left(tradeEpoch, dtimeEpoch[ttm])]) #min(range(len(tradeEpoch)), key=lambda i: abs(tradeEpoch[i] - dtimeEpoch[ttm]))
-            alltimeDict[dtime[ttm]] = [0,0,0]
-            
-        allvalist =[]
-        prevHist = []
-        for it in range(len(allmake)):
-            if it+1 < len(allmake):
-                tempList = combined_trades[allmake[it][2]:allmake[it+1][2]]
-                if it == 0:
-                    temphs = historV2(df[:it+1],100,{}, tempList, [])
-                    prevHist = temphs
-                    vA = valueAreaV3(temphs[0])
-                    allvalist.append(vA  + [df['timestamp'][it], df['time'][it], temphs[1]]) 
-                else:
-                    temphs = historV2(df[:it+1],100,{}, tempList, [])
-                    cHist = combine_histogram_data(prevHist, temphs)
-                    prevHist = cHist
-                    vA = valueAreaV3(cHist[0])
-                    allvalist.append(vA  + [df['timestamp'][it], df['time'][it], cHist[1]]) 
-            else:
-                tempList = combined_trades
-                temphs = historV2(df[:it+1],100,{}, tempList, [])
-                vA = valueAreaV3(temphs[0])
-                allvalist.append(vA  + [df['timestamp'][it], df['time'][it], temphs[1]])
-            
-        df['allLowVA'] = pd.Series([i[0] for i in allvalist])
-        df['allHighVA'] = pd.Series([i[1] for i in allvalist])
-        df['allPOC']  = pd.Series([i[2] for i in allvalist])
-        df['allPOC2']  = pd.Series([i[5] for i in allvalist])
-
-        
-        
-    if stored_data is None:
+    if True:#stored_data is None:
         print('Newstored')
         blob = bucket.blob('Daily'+stkName)
 
@@ -612,6 +378,9 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
         # Convert to DataFrame using StringIO
         prevDf = pd.read_csv(StringIO(csv_data))
         
+        stored_data = {'df': prevDf.values.tolist()}
+        
+        '''
         fs = gcsfs.GCSFileSystem()
         
         # Reading directly
@@ -633,8 +402,8 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
         stored_data = {'df': prevDf.values.tolist(), 'trades': tradeDf.values.tolist()}
         del tradeDf
         gc.collect()
-            
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        '''
+        with ThreadPoolExecutor(max_workers=2) as executor:
             #if sname != previous_stkName:
             # Download everything when stock name changes
             futures = [
@@ -725,7 +494,7 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
 
            
 
-        combined_trades = pd.concat([pd.DataFrame(stored_data['trades'], columns=['0','1','2','3','4','5','6']), pd.DataFrame(AllTrades, columns=['0','1','2','3','4','5','6'])], ignore_index=True)
+        #combined_trades = pd.concat([pd.DataFrame(stored_data['trades'], columns=['0','1','2','3','4','5','6']), pd.DataFrame(AllTrades, columns=['0','1','2','3','4','5','6'])], ignore_index=True)
 
 
         dtimeEpoch_np = np.array(df_resampled2['timestamp'].dropna().values)
@@ -764,7 +533,7 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
             if len(tempList) > 0:
 
                 # Store top 100 largest trades (fast NumPy sorting)
-                sorted_trades = tempList[np.argsort(tempList[:, 1].astype(int))][-100:].tolist()
+                sorted_trades = tempList[np.argsort(tempList[:, 1].astype(int))][-200:].tolist()
                 troPerCandle.append([make[tr][1], sorted_trades])
 
                 # Aggregate buy/sell/neutral trade volumes
@@ -811,38 +580,31 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
         df_resampled2['buys'] = [i[2] for i in timeFrame]
         df_resampled2['sells'] = [i[3] for i in timeFrame]
         
-        df = pd.concat([prevDf, df_resampled2], ignore_index=True)
         
-        df['datetime'] = pd.to_datetime(df['timestamp'], unit='ns')
+        
+        df_resampled2['datetime'] = pd.to_datetime(df_resampled2['timestamp'], unit='ns')
 
         # Convert to Eastern Time (automatically handles EST/EDT)
-        df['datetime_est'] = df['datetime'].dt.tz_localize('UTC').dt.tz_convert('America/New_York')
+        df_resampled2['datetime_est'] = df_resampled2['datetime'].dt.tz_localize('UTC').dt.tz_convert('America/New_York')
 
         # Format as MM/DD/YYYY HH:MM in Eastern Time
-        df['formatted_date'] = df['datetime_est'].dt.strftime('%m/%d/%Y %H:%M')
+        df_resampled2['formatted_date'] = df_resampled2['datetime_est'].dt.strftime('%m/%d/%Y %H:%M')
 
-        df['buyPercent'] = df['buys'] / (df['buys']+df['sells'])
-        df['sellPercent'] = df['sells'] / (df['buys']+df['sells'])
+        df_resampled2['buyPercent'] = df_resampled2['buys'] / (df_resampled2['buys']+df_resampled2['sells'])
+        df_resampled2['sellPercent'] = df_resampled2['sells'] / (df_resampled2['buys']+df_resampled2['sells'])
 
-        df['topBuysPercent'] = ((df['topBuys']) / (df['topBuys']+df['topSells']))
-        df['topSellsPercent'] = ((df['topSells']) / (df['topBuys']+df['topSells']))
-
-
-        putCandImb =  df.index[
-            (df['topBuys'] > df['topSells']) &
-            (df['percentile_topBuys'] > 95) &
-            (df['topBuysPercent'] >= 0.65)
-        ].tolist()
-        callCandImb = df.index[
-            (df['topSells'] > df['topBuys']) &
-            (df['percentile_topSells'] > 95) &
-            (df['topSellsPercent'] >= 0.65)
-        ].tolist()
+        df_resampled2['topBuysPercent'] = ((df_resampled2['topBuys']) / (df_resampled2['topBuys']+df_resampled2['topSells']))
+        df_resampled2['topSellsPercent'] = ((df_resampled2['topSells']) / (df_resampled2['topBuys']+df_resampled2['topSells']))
         
+        '''
+        df = pd.concat([prevDf, df_resampled2], ignore_index=True)
+
         
-        dtime = df['time'].dropna().values.tolist()
-        dtimeEpoch = df['timestamp'].dropna().values.tolist()
-        tradeEpoch = combined_trades.iloc[:, 2].tolist()
+        '''
+        
+        dtime = df_resampled2['time'].dropna().values.tolist()
+        dtimeEpoch = df_resampled2['timestamp'].dropna().values.tolist()
+        tradeEpoch = AllTrades[:, 2].tolist() #AllTrades.iloc[:, 2].tolist()
 
         alltimeDict = {}
         allmake = []
@@ -850,39 +612,84 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
             
             allmake.append([dtimeEpoch[ttm],dtime[ttm],bisect.bisect_left(tradeEpoch, dtimeEpoch[ttm])]) #min(range(len(tradeEpoch)), key=lambda i: abs(tradeEpoch[i] - dtimeEpoch[ttm]))
             alltimeDict[dtime[ttm]] = [0,0,0]
+        
+        blob = bucket.blob('DailyNQlastVP')
+        
+        # Download the blob content as text
+        blob_text = blob.download_as_text()
+        
+        # Split the text into a list (assuming each line is an item)
+        lastVp = blob_text.splitlines()
+        
+        lastVp = [
+            [float(x.strip()) for x in line.split(',')]
+            for line in lastVp
+        ]
             
         allvalist =[]
         prevHist = []
         for it in range(len(allmake)):
             if it+1 < len(allmake):
-                tempList = combined_trades[allmake[it][2]:allmake[it+1][2]]
+                tempList = AllTrades[allmake[it][2]:allmake[it+1][2]]
                 if it == 0:
-                    temphs = historV2(df[:it+1],100,{}, tempList, [])
-                    prevHist = temphs
-                    vA = valueAreaV3(temphs[0])
-                    allvalist.append(vA  + [df['timestamp'][it], df['time'][it], temphs[1]]) 
+                    temphs = historV2(df_resampled2[:it+1],100,{}, tempList, [])
+                    cHist = combine_histogram_data([lastVp,0], temphs)
+                    prevHist = cHist
+                    vA = valueAreaV3(cHist[0])
+                    allvalist.append(vA  + [df_resampled2['timestamp'][it], df_resampled2['time'][it], cHist[1]]) 
                 else:
-                    temphs = historV2(df[:it+1],100,{}, tempList, [])
+                    temphs = historV2(df_resampled2[:it+1],100,{}, tempList, [])
                     cHist = combine_histogram_data(prevHist, temphs)
                     prevHist = cHist
                     vA = valueAreaV3(cHist[0])
-                    allvalist.append(vA  + [df['timestamp'][it], df['time'][it], cHist[1]]) 
+                    allvalist.append(vA  + [df_resampled2['timestamp'][it], df_resampled2['time'][it], cHist[1]]) 
             else:
-                tempList = combined_trades
-                temphs = historV2(df[:it+1],100,{}, tempList, [])
-                vA = valueAreaV3(temphs[0])
-                allvalist.append(vA  + [df['timestamp'][it], df['time'][it], temphs[1]])
+                tempList = AllTrades
+                temphs = historV2(df_resampled2[:it+1],100,{}, tempList, [])
+                cHist = combine_histogram_data(prevHist, temphs)
+                prevHist = cHist
+                vA = valueAreaV3(cHist[0])
+                allvalist.append(vA  + [df_resampled2['timestamp'][it], df_resampled2['time'][it], cHist[1]]) 
             
-        df['allLowVA'] = pd.Series([i[0] for i in allvalist])
-        df['allHighVA'] = pd.Series([i[1] for i in allvalist])
-        df['allPOC']  = pd.Series([i[2] for i in allvalist])
-        df['allPOC2']  = pd.Series([i[5] for i in allvalist])
+            
+        
+        df_resampled2['allLowVA'] = pd.Series([i[0] for i in allvalist])
+        df_resampled2['allHighVA'] = pd.Series([i[1] for i in allvalist])
+        df_resampled2['allPOC']  = pd.Series([i[2] for i in allvalist])
+        df_resampled2['allPOC2']  = pd.Series([i[5] for i in allvalist])
+        
+        #stored_data['allvalist'] = allvalist
 
                 
+    df = pd.concat([prevDf, df_resampled2], ignore_index=True)
+    
+    putCandImb =  df.index[
+        (df['topBuys'] > df['topSells']) &
+        (df['percentile_topBuys'] > 95) &
+        (df['topBuysPercent'] >= 0.65)
+    ].tolist()
+    callCandImb = df.index[
+        (df['topSells'] > df['topBuys']) &
+        (df['percentile_topSells'] > 95) &
+        (df['topSellsPercent'] >= 0.65)
+    ].tolist()
         
         
     previous_stkName = sname
     previous_interv = interv
+    
+    formatted_dates = df['formatted_date'].tolist()
+    top_buys = df['topBuysPercent'].tolist()
+    top_sells = df['topSellsPercent'].tolist()
+    
+    # Zip the three lists together
+    zipped = zip(formatted_dates, top_buys, top_sells)
+    
+    # Create a list of strings
+    list_of_strings = [f"{dates}, {buy}, {sell}" for dates, buy, sell in zipped]
+    
+    #print(list_of_strings)
+        
     
     fig = make_subplots(rows=3, cols=2, shared_xaxes=True, shared_yaxes=True,
                             specs=[[{}, {}],
@@ -899,7 +706,7 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
                                  low=df['low'],
                                  close=df['close'],
                                  name="OHLC",
-                                 hovertext=df['formatted_date'].tolist()),
+                                 hovertext=list_of_strings),
                   row=1, col=1)
 
     #fig.add_trace(go.Scatter(x=df.index, y=df['POC2'], mode='lines',name='POC', hovertext=df['time'].tolist(), marker_color='#0000FF'))
@@ -913,8 +720,8 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
     fig.add_trace(go.Scatter(x=df.index, y=df['allLowVA'], mode='lines', opacity=0.3, name='allLowVA', line=dict(color='purple')))
 
     fig.add_trace(go.Bar(
-        x=[i[1] for i in temphs[0][::-1]],  # bar length 
-        y=[i[0] for i in temphs[0][::-1]],  # y-axis labels
+        x=[i[1] for i in cHist[0][::-1]],  # bar length 
+        y=[i[0] for i in cHist[0][::-1]],  # y-axis labels
         orientation='h',
         #text=[str(i[1]) for i in bbbb[1]],  # show index 1 as bar label
         textposition='auto',
@@ -974,9 +781,40 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
             name='BuyImbalance'
         ), row=1, col=1)
         
-
+        
+    blob = bucket.blob('DailyNQtopOrders')
+    
+    # Download the blob content as text
+    blob_text = blob.download_as_text()
+    
+    # Split the text into a list (assuming each line is an item)
+    dailyNQtopOrders = blob_text.splitlines()
+    
+        # Step 1: Split each line into fields
+    split_data = [row.split(', ') for row in dailyNQtopOrders]
+    
+    # Step 2: Convert numeric fields properly
+    converted_data = []
+    for row in split_data:
+        new_row = [
+            float(row[0]),       # price -> float
+            int(row[1]),         # quantity -> int
+            int(row[2]),         # id -> int
+            int(row[3]),         # field4 -> int
+            int(row[4]),         # field5 -> int
+            row[5],              # letter -> str
+            row[6]               # time -> str
+        ]
+        converted_data.append(new_row)
+    
+    # Step 3: Make it a numpy array
+    array_data = np.array(converted_data, dtype=object)
+    
+    combined_trades = np.concatenate((array_data, AllTrades), axis=0)
+    combined_trades = pd.DataFrame(combined_trades)
+    
     combined_trades_sorted = combined_trades.sort_values(by=combined_trades.columns[1], ascending=False)
-    combined_trades_sorted = combined_trades_sorted.iloc[:500]
+    combined_trades_sorted = combined_trades_sorted.iloc[:800]
     prices = combined_trades_sorted.iloc[:, 0].sort_values().tolist()  # Sorted list of prices
 
     
@@ -1059,7 +897,7 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
             ), row=1, col=1)
             
             
-    fig.update_layout(title=datetime.now().strftime("%m/%d/%Y %H:%M"),
+    fig.update_layout(title=ctime,
                           paper_bgcolor='#E5ECF6',
                           showlegend=False,
                           height=880,
