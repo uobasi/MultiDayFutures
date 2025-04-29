@@ -669,7 +669,10 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             else:
                 tempList = AllTrades
                 temphs = historV2(df_resampled2[:it+1],100,{}, tempList, [])
-                cHist = combine_histogram_data(prevHist, temphs)
+                if len(prevHist) == 0:
+                    cHist = combine_histogram_data([lastVp,0], temphs)
+                else:
+                    cHist = combine_histogram_data(prevHist, temphs)
                 prevHist = cHist
                 vA = valueAreaV3(cHist[0])
                 allvalist.append(vA  + [df_resampled2['timestamp'][it], df_resampled2['time'][it], cHist[1]]) 
