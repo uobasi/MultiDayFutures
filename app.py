@@ -681,12 +681,17 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
     formatted_dates = df['formatted_date'].tolist()
     top_buys = df['topBuysPercent'].tolist()
     top_sells = df['topSellsPercent'].tolist()
+    top_buys_count = df['topBuys'].tolist()
+    top_sells_count = df['topSells'].tolist()
     
     # Zip the three lists together
-    zipped = zip(formatted_dates, top_buys, top_sells)
+    zipped = zip(formatted_dates, top_buys, top_sells, top_buys_count, top_sells_count)
     
     # Create a list of strings
-    list_of_strings = [f"{dates}, {buy}, {sell}" for dates, buy, sell in zipped]
+    list_of_strings = [
+    f"{dates}<br> Buys: {buy_count} : {round(buy_percent, 2)}<br> Sells: {sell_count} : {round(sell_percent, 2)}<br>"
+    for dates, buy_percent, sell_percent, buy_count, sell_count in zipped
+    ]
     
     #print(list_of_strings)
         
