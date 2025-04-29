@@ -223,6 +223,26 @@ def find_clusters(numbers, threshold):
     
     return clusters
 
+from scipy import signal
+def butter_lowpass_realtime(data, cutoff=0.05, order=2):
+    """
+    Apply a real-time Butterworth low-pass filter to smooth stock prices.
+    Uses lfilter() with proper initial conditions.
+    
+    :param data: List or Pandas Series of stock prices.
+    :param cutoff: Normalized cutoff frequency (0 < cutoff < 1), lower = smoother.
+    :param order: Filter order (higher = sharper cutoff).
+    :return: Smoothed stock price series (real-time compatible).
+    """
+    b, a = signal.butter(order, cutoff, btype='low', analog=False)
+    
+    # Set initial conditions using the first value to avoid starting at zero
+    zi = signal.lfilter_zi(b, a) * data[0]
+    
+    # Apply the filter in a forward-only manner
+    smoothed_data, _ = signal.lfilter(b, a, data, zi=zi)
+    
+    return smoothed_data
 
 
 symbolNumList =  ['4916', '42005804', '42003068', '134373', '287', '42009162', '42007178', '42008377']
@@ -263,6 +283,8 @@ app.layout = html.Div([
         n_intervals=0,
       ),
 
+    
+    
     
 
     html.Div([
@@ -663,6 +685,10 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
                 
     df = pd.concat([prevDf, df_resampled2], ignore_index=True)
     
+    
+    df['smoothed_1ema'] = butter_lowpass_realtime(df["close"],cutoff=0.5, order=2)
+    df['POCDistanceEMA'] = (df['smoothed_1ema'] - df['allPOC']) / df['allPOC'] * 100
+    
     putCandImb =  df.index[
         (df['topBuys'] > df['topSells']) &
         (df['percentile_topBuys'] > 95) &
@@ -696,16 +722,15 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
     #print(list_of_strings)
         
     
-    fig = make_subplots(rows=3, cols=2, shared_xaxes=True, shared_yaxes=True,
+    fig = make_subplots(rows=2, cols=2, shared_xaxes=True, shared_yaxes=True,
                             specs=[[{}, {}],
-                                   [{"colspan": 1}, {}],
                                    [{"colspan": 1}, {}]], #[{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
                              horizontal_spacing=0.00, vertical_spacing=0.00, # subplot_titles=(stkName +' '+ str(datetime.now().time()))' (Sell:'+str(putDec)+' ('+str(round(NumPut,2))+') | '+'Buy:'+str(CallDec)+' ('+str(round(NumCall,2))+') \n '+' (Sell:'+str(thputDec)+' ('+str(round(thNumPut,2))+') | '+'Buy:'+str(thCallDec)+' ('+str(round(thNumCall,2))+') \n '
-                             column_widths=[0.90,0.10], row_width=[0.125,0.125,75,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 62
+                             column_widths=[0.90,0.10], row_width=[0.10,0.90,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 62
 
         
 
-    fig.add_trace(go.Candlestick(x=pd.Series([i for i in range(len(df))]),
+    fig.add_trace(go.Candlestick(x=df.index,
                                  open=df['open'],
                                  high=df['high'],
                                  low=df['low'],
@@ -785,8 +810,31 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
             ),
             name='BuyImbalance'
         ), row=1, col=1)
-        
-        
+     
+    
+    #if 'POCDistanceEMA' in df.columns:
+    colors = ['maroon']
+
+    for val in range(1, len(df['POCDistanceEMA'])):
+        if df['POCDistanceEMA'].iloc[val] > 0:
+            color = 'teal'
+            if df['POCDistanceEMA'].iloc[val] > df['POCDistanceEMA'].iloc[val-1]:
+                color = '#54C4C1' 
+        else:
+            color = 'maroon'
+            if df['POCDistanceEMA'].iloc[val] < df['POCDistanceEMA'].iloc[val-1]:
+                color = 'crimson'
+        colors.append(color)
+    
+    fig.add_trace(
+        go.Bar(
+            x=df.index, 
+            y=df['POCDistanceEMA'], 
+            marker_color=colors
+        ),
+        row=2, col=1
+    )
+            
     blob = bucket.blob('DailyNQtopOrders')
     
     # Download the blob content as text
@@ -908,7 +956,8 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
                           height=880,
                           xaxis_rangeslider_visible=False,)    
 
-    fig.update_xaxes(autorange="reversed", row=1, col=2)            
+    fig.update_xaxes(autorange="reversed", row=1, col=2) 
+    fig.update_xaxes(showticklabels=False, row=2, col=1)           
     #fig.show(config={'modeBarButtonsToAdd': ['drawline']})
 
            

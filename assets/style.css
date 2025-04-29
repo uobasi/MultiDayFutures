@@ -1,0 +1,90 @@
+/* Main Container */
+.main-container {
+    display: flex;
+    flex-direction: row; /* Align items in a row */
+    justify-content: space-around;
+    flex-wrap: wrap; /* Wrap items if screen is too small */
+    background: #E5ECF6; /* Soft light blue background */
+    padding: 20px;
+}
+
+/* Sub-container */
+.sub-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 10px;
+}
+
+/* Input Fields */
+.input-field {
+    width: 150px;
+    height: 35px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    padding: 0 10px;
+}
+
+/* Buttons */
+.submit-button {
+    width: 100px;
+    height: 35px;
+    border-radius: 10px;
+    border: none;
+    color: white;
+    background: #333333; /* Dark gray */
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.submit-button:hover {
+    background: #555555; /* Lighter gray on hover */
+}
+
+/* Labels */
+.label-text {
+    text-align: center;
+    font-weight: bold;
+    color: #333;
+}
+
+/* Toggle Button */
+.toggle-container {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 16px;
+}
+
+
+/* Move toggle button above the bottom bar charts */
+.toggle-wrapper {
+    position: relative;
+    width: 100%;
+    text-align: center;
+    margin-top: -50px; /* Adjust this value to move up/down */
+}
+
+/* Style the Toggle Button */
+.toggle-container-bottom {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+    padding: 5px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    display: inline-block;
+    background: #E5ECF6; /* Soft light blue background */
+}
+
+/* Style the Toggle Switch */
+.toggle-switch {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+    padding: 5px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    display: inline-block;
+}
+
