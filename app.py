@@ -269,7 +269,7 @@ bucket = client.bucket(bucket_name)
 
 #import duckdb
 #from google.api_core.exceptions import NotFound
-from dash import Dash, dcc, html, Input, Output, callback, State
+from dash import Dash, dcc, html, Input, Output, callback, State, callback_context
 initial_inter = 1800000  # Initial interval #210000#250000#80001
 subsequent_inter = 80000  # Subsequent interval
 app = Dash()
@@ -283,8 +283,6 @@ app.layout = html.Div([
         n_intervals=0,
       ),
 
-    
-    
     
 
     html.Div([
@@ -307,6 +305,7 @@ app.layout = html.Div([
     dcc.Store(id='previous-interv'),
     dcc.Store(id='previous-stkName'),
     dcc.Store(id='interval-time', data=initial_inter),
+    dcc.Store(id='graph-layout'),
 ])
 
 @callback(
@@ -349,19 +348,21 @@ def update_interval(n_clicks, value):
         Output('graph', 'figure'),
         Output('previous-stkName', 'data'),
         Output('previous-interv', 'data'),
-        Output('interval', 'interval')],
-    [Input('interval', 'n_intervals')], 
+        Output('interval', 'interval'),
+        Output('graph-layout', 'data')],
+    [Input('interval', 'n_intervals'),
+     Input('graph', 'relayoutData')], 
     [State('stkName-value', 'data'),
         State('interv-value', 'data'),
         State('data-store', 'data'),
         State('previous-stkName', 'data'),
         State('previous-interv', 'data'),
         State('interval-time', 'data'),
-        
-    ],
+        State('graph-layout', 'data')],
+    prevent_initial_call=False
 )
 
-def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName, previous_interv, interval_time): #interv
+def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, previous_stkName, previous_interv, interval_time, layout_data): #interv
     
     #print(sname, interv, stored_data, previous_stkName)
     #print(interv)
@@ -388,7 +389,7 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
         stored_data = None
     
         
-    ctime = datetime.now().strftime("%m/%d/%Y %H:%M")
+    ctime = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
 
     if True:#stored_data is None:
         print('Newstored')
@@ -722,11 +723,10 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
     #print(list_of_strings)
         
     
-    fig = make_subplots(rows=2, cols=2, shared_xaxes=True, shared_yaxes=True,
-                            specs=[[{}, {}],
-                                   [{"colspan": 1}, {}]], #[{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
+    fig = make_subplots(rows=1, cols=2, shared_xaxes=True, shared_yaxes=True,
+                            specs=[[{}, {}],], #[{"colspan": 1}, {}] [{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
                              horizontal_spacing=0.00, vertical_spacing=0.00, # subplot_titles=(stkName +' '+ str(datetime.now().time()))' (Sell:'+str(putDec)+' ('+str(round(NumPut,2))+') | '+'Buy:'+str(CallDec)+' ('+str(round(NumCall,2))+') \n '+' (Sell:'+str(thputDec)+' ('+str(round(thNumPut,2))+') | '+'Buy:'+str(thCallDec)+' ('+str(round(thNumCall,2))+') \n '
-                             column_widths=[0.90,0.10], row_width=[0.10,0.90,] ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 62
+                             column_widths=[0.90,0.10], ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 62
 
         
 
@@ -738,6 +738,8 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
                                  name="OHLC",
                                  hovertext=list_of_strings),
                   row=1, col=1)
+    
+    
 
     #fig.add_trace(go.Scatter(x=df.index, y=df['POC2'], mode='lines',name='POC', hovertext=df['time'].tolist(), marker_color='#0000FF'))
     #fig.add_trace(go.Scatter(x=df.index, y=df['LowVA'], mode='lines', opacity=0.3, name='LowVA', line=dict(color='purple')))
@@ -748,6 +750,42 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
     fig.add_trace(go.Scatter(x=df.index, y=df['allPOC2'], mode='lines',name='allPOC2', hovertext=df['time'].tolist(), marker_color='#0000FF'))
     fig.add_trace(go.Scatter(x=df.index, y=df['allHighVA'], mode='lines', opacity=0.3, name='allHighVA', line=dict(color='purple')))
     fig.add_trace(go.Scatter(x=df.index, y=df['allLowVA'], mode='lines', opacity=0.3, name='allLowVA', line=dict(color='purple')))
+    
+        
+
+    fig.add_trace(go.Candlestick(
+        x=[df.index[i] for i in range(len(top_buys_count)) if top_buys_count[i] > top_sells_count[i]],
+        open=[df['open'][i] for i in range(len(top_buys_count)) if top_buys_count[i] > top_sells_count[i]],
+        high=[df['high'][i] for i in range(len(top_buys_count)) if top_buys_count[i] > top_sells_count[i]],
+        low=[df['low'][i] for i in range(len(top_buys_count)) if top_buys_count[i] > top_sells_count[i]],
+        close=[df['close'][i] for i in range(len(top_buys_count)) if top_buys_count[i] > top_sells_count[i]],
+        increasing={'line': {'color': 'teal'}},
+        decreasing={'line': {'color': 'teal'}},
+        hovertext=[list_of_strings[i] for i in range(len(top_buys_count)) if top_buys_count[i] > top_sells_count[i]],
+        hoverlabel=dict(
+             bgcolor="teal",
+             font=dict(color="white", size=10),
+             ),
+        name='' ),
+    row=1, col=1)
+
+        
+
+    fig.add_trace(go.Candlestick(
+        x=[df.index[i] for i in range(len(top_buys_count)) if top_buys_count[i] < top_sells_count[i]],
+        open=[df['open'][i] for i in range(len(top_buys_count)) if top_buys_count[i] < top_sells_count[i]],
+        high=[df['high'][i] for i in range(len(top_buys_count)) if top_buys_count[i] < top_sells_count[i]],
+        low=[df['low'][i] for i in range(len(top_buys_count)) if top_buys_count[i] < top_sells_count[i]],
+        close=[df['close'][i] for i in range(len(top_buys_count)) if top_buys_count[i] < top_sells_count[i]],
+        increasing={'line': {'color': 'pink'}},
+        decreasing={'line': {'color': 'pink'}},
+        hovertext=[list_of_strings[i]  for i in range(len(top_buys_count)) if top_buys_count[i] < top_sells_count[i]],
+        hoverlabel=dict(
+             bgcolor="pink",
+             font=dict(color="black", size=10),
+             ),
+        name='' ),
+    row=1, col=1)
 
     fig.add_trace(go.Bar(
         x=[i[1] for i in cHist[0][::-1]],  # bar length 
@@ -811,8 +849,14 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
             name='BuyImbalance'
         ), row=1, col=1)
      
-    
+    '''
+    if layout_data:
+        if 'xaxis.range[0]' in layout_data and 'xaxis.range[1]' in layout_data:
+            fig.update_layout(xaxis_range=[layout_data['xaxis.range[0]'], layout_data['xaxis.range[1]']])
+        if 'yaxis.range[0]' in layout_data and 'yaxis.range[1]' in layout_data:
+            fig.update_layout(yaxis_range=[layout_data['yaxis.range[0]'], layout_data['yaxis.range[1]']])
     #if 'POCDistanceEMA' in df.columns:
+    
     colors = ['maroon']
 
     for val in range(1, len(df['POCDistanceEMA'])):
@@ -834,6 +878,7 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
         ),
         row=2, col=1
     )
+    '''
             
     blob = bucket.blob('DailyNQtopOrders')
     
@@ -950,6 +995,8 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
             ), row=1, col=1)
             
             
+
+            
     fig.update_layout(title=ctime,
                           paper_bgcolor='#E5ECF6',
                           showlegend=False,
@@ -957,8 +1004,26 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
                           xaxis_rangeslider_visible=False,)    
 
     fig.update_xaxes(autorange="reversed", row=1, col=2) 
-    fig.update_xaxes(showticklabels=False, row=2, col=1)           
+    fig.update_xaxes(showticklabels=False, row=2, col=1)   
+
+    ctx = callback_context
+    if ctx.triggered and ctx.triggered[0]['prop_id'] == 'graph.relayoutData':
+        # Only update the layout_data when the user interacts with the graph
+        if relayout_data and ('xaxis.range[0]' in relayout_data or 'yaxis.range[0]' in relayout_data):
+            layout_data = relayout_data
+    
+    # Apply stored layout to new figure
+    if layout_data:
+        # Apply x-axis range if available
+        if 'xaxis.range[0]' in layout_data and 'xaxis.range[1]' in layout_data:
+            fig.update_layout(xaxis_range=[layout_data['xaxis.range[0]'], layout_data['xaxis.range[1]']])
+        
+        # Apply y-axis range if available
+        if 'yaxis.range[0]' in layout_data and 'yaxis.range[1]' in layout_data:
+            fig.update_layout(yaxis_range=[layout_data['yaxis.range[0]'], layout_data['yaxis.range[1]']])
+            
     #fig.show(config={'modeBarButtonsToAdd': ['drawline']})
+    
 
            
     if interval_time == initial_inter:
@@ -968,7 +1033,7 @@ def update_graph_live(n_intervals, sname, interv, stored_data, previous_stkName,
         interval_time = initial_inter
 
 
-    return stored_data, fig, previous_stkName, previous_interv, interval_time
+    return stored_data, fig, previous_stkName, previous_interv, interval_time, relayout_data
         
 if __name__ == '__main__':
     app.run_server(debug=False, host='0.0.0.0', port=8080)
