@@ -797,7 +797,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
         #text=[str(i[1]) for i in bbbb[1]],  # show index 1 as bar label
         textposition='auto',
         marker_color='teal',  # static color for now
-        hovertext=[f"Edge: {i[0]} - {i[3]}" for i in temphs[0][::-1]]  # custom hover text
+        hovertext=[f"Edge: {i[0]} - {i[3]}" for i in cHist[0][::-1]]  # custom hover text
     ),
         row=1, col=2
     )
