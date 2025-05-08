@@ -689,15 +689,16 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 
     df = pd.concat([prevDf, df_resampled2], ignore_index=True)
     
-    df['topDiffNega'] = ((df['topBuys'] - df['topSells']).apply(lambda x: x if x < 0 else np.nan)).abs()
-    df['topDiffPost'] = (df['topBuys'] - df['topSells']).apply(lambda x: x if x > 0 else np.nan)
     
-    df['percentile_topBuys'] =  [percentileofscore(df['topBuys'][:i+1], df['topBuys'][i], kind='mean') for i in range(len(df))]
-    df['percentile_topSells'] = [percentileofscore(df['topSells'][:i+1], df['topSells'][i], kind='mean') for i in range(len(df))] 
+    df['alltopDiffNega'] = ((df['topBuys'] - df['topSells']).apply(lambda x: x if x < 0 else np.nan)).abs()
+    df['alltopDiffPost'] = (df['topBuys'] - df['topSells']).apply(lambda x: x if x > 0 else np.nan)
+    
+    df['allpercentile_topBuys'] =  [percentileofscore(df['topBuys'][:i+1], df['topBuys'][i], kind='mean') for i in range(len(df))]
+    df['allpercentile_topSells'] = [percentileofscore(df['topSells'][:i+1], df['topSells'][i], kind='mean') for i in range(len(df))] 
 
-    df['percentile_Posdiff'] =  [percentileofscore(df['topDiffPost'][:i+1].dropna(), df['topDiffPost'][i], kind='mean') if not np.isnan(df['topDiffPost'][i]) else None for i in range(len(df))]
-    df['percentile_Negdiff'] =  [percentileofscore(df['topDiffNega'][:i+1].dropna(), df['topDiffNega'][i], kind='mean') if not np.isnan(df['topDiffNega'][i]) else None for i in range(len(df))]
-
+    df['allpercentile_Posdiff'] =  [percentileofscore(df['alltopDiffPost'][:i+1].dropna(), df['alltopDiffPost'][i], kind='mean') if not np.isnan(df['alltopDiffPost'][i]) else None for i in range(len(df))]
+    df['allpercentile_Negdiff'] =  [percentileofscore(df['alltopDiffNega'][:i+1].dropna(), df['alltopDiffNega'][i], kind='mean') if not np.isnan(df['alltopDiffNega'][i]) else None for i in range(len(df))]
+    
     
     
     df['smoothed_1ema'] = butter_lowpass_realtime(df["close"],cutoff=0.5, order=2)
@@ -711,6 +712,18 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
     callCandImb = df.index[
         (df['topSells'] > df['topBuys']) &
         (df['percentile_topSells'] > 95) &
+        (df['topSellsPercent'] >= 0.65)
+    ].tolist()
+    
+    
+    putCandImb_1 =  df.index[
+        (df['topBuys'] > df['topSells']) &
+        (df['allpercentile_topBuys'] > 95) &
+        (df['topBuysPercent'] >= 0.65)
+    ].tolist()
+    callCandImb_1 = df.index[
+        (df['topSells'] > df['topBuys']) &
+        (df['allpercentile_topSells'] > 95) &
         (df['topSellsPercent'] >= 0.65)
     ].tolist()
         
@@ -860,6 +873,57 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 font=dict(color="white", size=13),
             ),
             name='BuyImbalance'
+        ), row=1, col=1)
+        
+        
+    
+    if len(callCandImb_1) > 0:
+        fig.add_trace(go.Candlestick(
+            x=callCandImb_1,  # Directly use the index list
+            open=df.loc[callCandImb_1, 'open'].values,  # Access using .loc[]
+            high=df.loc[callCandImb_1, 'high'].values,
+            low=df.loc[callCandImb_1, 'low'].values,
+            close=df.loc[callCandImb_1, 'close'].values,
+            increasing={'line': {'color': 'crimson'}},
+            decreasing={'line': {'color': 'crimson'}},
+            hovertext=[
+                f"({df.loc[i, 'buys']}) {round(df.loc[i, 'buyPercent'], 2)} Bid "
+                f"({df.loc[i, 'sells']}) {round(df.loc[i, 'sellPercent'], 2)} Ask <br>"
+                f"{df.loc[i, 'allDiff']} <br> TopOrders: <br>"
+                f"({df.loc[i, 'topBuys']}) {round(df.loc[i, 'topBuysPercent'], 2)} Bid "
+                f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask"
+                for i in callCandImb_1
+            ],
+            hoverlabel=dict(
+                 bgcolor="crimson",
+                 font=dict(color="white", size=13),
+                 ),
+            name='AllSellimbalance' ),
+        row=1, col=1)
+
+        
+    if len(putCandImb_1) > 0:
+        fig.add_trace(go.Candlestick(
+            x=putCandImb_1,  # Directly use the index list
+            open=df.loc[putCandImb_1, 'open'].values,  # Access using .loc[]
+            high=df.loc[putCandImb_1, 'high'].values,
+            low=df.loc[putCandImb_1, 'low'].values,
+            close=df.loc[putCandImb_1, 'close'].values,
+            increasing={'line': {'color': '#2ED9FF'}},
+            decreasing={'line': {'color': '#2ED9FF'}},
+            hovertext=[
+                f"({df.loc[i, 'buys']}) {round(df.loc[i, 'buyPercent'], 2)} Bid "
+                f"({df.loc[i, 'sells']}) {round(df.loc[i, 'sellPercent'], 2)} Ask <br>"
+                f"{df.loc[i, 'allDiff']} <br>TopOrders: <br>"
+                f"({df.loc[i, 'topBuys']}) {round(df.loc[i, 'topBuysPercent'], 2)} Bid "
+                f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask"
+                for i in putCandImb_1
+            ],
+            hoverlabel=dict(
+                bgcolor="#2ED9FF",
+                font=dict(color="white", size=13),
+            ),
+            name='AllBuyImbalance'
         ), row=1, col=1)
      
     '''
