@@ -848,7 +848,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                  bgcolor="black",
                  font=dict(color="white", size=13),
                  ),
-            name='Sellimbalance' ),
+            name='Sellimbalance Today' ),
         row=1, col=1)
 
         
@@ -874,7 +874,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 bgcolor="#2CA02C",
                 font=dict(color="white", size=13),
             ),
-            name='BuyImbalance'
+            name='BuyImbalance Today'
         ), row=1, col=1)
         
         
@@ -901,7 +901,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                  bgcolor="crimson",
                  font=dict(color="white", size=13),
                  ),
-            name='AllSellimbalance' ),
+            name='AllSellimbalance Overall' ),
         row=1, col=1)
 
         
@@ -927,7 +927,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 bgcolor="#2ED9FF",
                 font=dict(color="white", size=13),
             ),
-            name='AllBuyImbalance'
+            name='AllBuyImbalance Overall'
         ), row=1, col=1)
      
     '''
