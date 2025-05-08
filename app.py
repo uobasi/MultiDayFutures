@@ -838,9 +838,10 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             hovertext=[
                 f"({df.loc[i, 'buys']}) {round(df.loc[i, 'buyPercent'], 2)} Bid "
                 f"({df.loc[i, 'sells']}) {round(df.loc[i, 'sellPercent'], 2)} Ask <br>"
-                f"{df.loc[i, 'allDiff']} <br> TopOrders: <br>"
+                f"{df.loc[i, 'allDiff']} <br>TopOrders: <br>"
                 f"({df.loc[i, 'topBuys']}) {round(df.loc[i, 'topBuysPercent'], 2)} Bid "
-                f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask"
+                f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask<br>"
+                f"{df.loc[i, 'formatted_date']}"
                 for i in callCandImb
             ],
             hoverlabel=dict(
@@ -863,9 +864,10 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             hovertext=[
                 f"({df.loc[i, 'buys']}) {round(df.loc[i, 'buyPercent'], 2)} Bid "
                 f"({df.loc[i, 'sells']}) {round(df.loc[i, 'sellPercent'], 2)} Ask <br>"
-                f"{df.loc[i, 'allDiff']} <br> TopOrders: <br>"
+                f"{df.loc[i, 'allDiff']} <br>TopOrders: <br>"
                 f"({df.loc[i, 'topBuys']}) {round(df.loc[i, 'topBuysPercent'], 2)} Bid "
-                f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask"
+                f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask<br>"
+                f"{df.loc[i, 'formatted_date']}"
                 for i in putCandImb
             ],
             hoverlabel=dict(
@@ -889,9 +891,10 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             hovertext=[
                 f"({df.loc[i, 'buys']}) {round(df.loc[i, 'buyPercent'], 2)} Bid "
                 f"({df.loc[i, 'sells']}) {round(df.loc[i, 'sellPercent'], 2)} Ask <br>"
-                f"{df.loc[i, 'allDiff']} <br> TopOrders: <br>"
+                f"{df.loc[i, 'allDiff']} <br>TopOrders: <br>"
                 f"({df.loc[i, 'topBuys']}) {round(df.loc[i, 'topBuysPercent'], 2)} Bid "
-                f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask"
+                f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask<br>"
+                f"{df.loc[i, 'formatted_date']}"
                 for i in callCandImb_1
             ],
             hoverlabel=dict(
@@ -916,7 +919,8 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 f"({df.loc[i, 'sells']}) {round(df.loc[i, 'sellPercent'], 2)} Ask <br>"
                 f"{df.loc[i, 'allDiff']} <br>TopOrders: <br>"
                 f"({df.loc[i, 'topBuys']}) {round(df.loc[i, 'topBuysPercent'], 2)} Bid "
-                f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask"
+                f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask<br>"
+                f"{df.loc[i, 'formatted_date']}"
                 for i in putCandImb_1
             ],
             hoverlabel=dict(
