@@ -1004,7 +1004,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
     cdata = find_clusters(prices, average_difference)
 
     mazz = max(len(cluster) for cluster in cdata)
-    clustercount = 7
+    clustercount = 5
 
     for cluster in cdata:
         if len(cluster) >= clustercount:
