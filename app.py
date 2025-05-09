@@ -993,7 +993,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
     combined_trades = pd.DataFrame(combined_trades)
     
     combined_trades_sorted = combined_trades.sort_values(by=combined_trades.columns[1], ascending=False)
-    combined_trades_sorted = combined_trades_sorted.iloc[:800]
+    combined_trades_sorted = combined_trades_sorted.iloc[:1000]
     prices = combined_trades_sorted.iloc[:, 0].sort_values().tolist()  # Sorted list of prices
 
     
