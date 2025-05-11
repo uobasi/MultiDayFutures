@@ -1010,6 +1010,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
         if len(cluster) >= clustercount:
             bidCount = 0
             askCount = 0
+            strCount = ''
             
             price_low = min(cluster)
             price_high = max(cluster)
@@ -1026,6 +1027,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                         bidCount += volume
                     elif side == 'A':
                         askCount += volume
+                    strCount += str(price) + " " + str(volume) + " " + str(side) + "<br>"
 
             totalVolume = bidCount + askCount
             if totalVolume > 0:
@@ -1056,7 +1058,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 x=df.index,
                 y=[cluster[0]] * len(df),
                 line_color=linecolor,
-                text=f"{cluster[0]} ({totalVolume}) ({len(cluster)}) Ask:({askDec}) {askCount} | Bid: ({bidDec}) {bidCount}",
+                text=f"{cluster[0]} ({totalVolume}) ({len(cluster)}) Ask:({askDec}) {askCount} | Bid: ({bidDec}) {bidCount} <br> {strCount}",
                 textposition="bottom left",
                 name=f"{cluster[0]} ({totalVolume}) ({len(cluster)}) Ask:({askDec}) {askCount} | Bid: ({bidDec}) {bidCount}",
                 showlegend=False,
@@ -1068,7 +1070,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 x=df.index,
                 y=[cluster[-1]] * len(df),
                 line_color=linecolor,
-                text=f"{cluster[-1]} ({totalVolume}) ({len(cluster)}) Ask:({askDec}) {askCount} | Bid: ({bidDec}) {bidCount}",
+                text=f"{cluster[-1]} ({totalVolume}) ({len(cluster)}) Ask:({askDec}) {askCount} | Bid: ({bidDec}) {bidCount} <br> {strCount}",
                 textposition="bottom left",
                 name=f"{cluster[-1]} ({totalVolume}) ({len(cluster)}) Ask:({askDec}) {askCount} | Bid: ({bidDec}) {bidCount}",
                 showlegend=False,
