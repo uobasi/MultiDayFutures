@@ -94,6 +94,90 @@ def historV2(df, num, quodict, trad:list=[], quot:list=[]):
 
     return [cptemp.tolist(), pocT]
 
+
+def countCandle(trad,quot,num1,num2, stkName, quodict):
+    enum = ['Bid(SELL)','BelowBid(SELL)','Ask(BUY)','AboveAsk(BUY)','Between']
+    color = ['red','darkRed','green','darkGreen','black']
+
+   
+    lsr = splitHun(stkName,trad, quot, num1, num2, quodict)
+    ind = lsr.index(max(lsr))   #lsr[:4]
+    return [enum[ind],color[ind],lsr]
+
+
+def splitHun(stkName, trad, quot, num1, num2, quodict):
+    Bidd = 0
+    belowBid = 0
+    Askk = 0
+    aboveAsk = 0
+    Between = 1
+    
+    return [Bidd,belowBid,Askk,aboveAsk,Between]
+
+def historV1(df, num, quodict, trad:list=[], quot:list=[]):
+    trad_array = np.array(trad, dtype=object)  # Ensure consistency
+    
+    sorted_indices = np.argsort(trad_array[:, 0])
+    sorted_trades = trad_array[sorted_indices]
+    
+    unique_prices, index = np.unique(sorted_trades[:, 0], return_index=True)
+
+    # Compute summed volume for each unique price
+    summed_volumes = np.add.reduceat(sorted_trades[:, 1].astype(int), index)
+    # Extract unique prices and counts efficiently using NumPy
+    #unique_prices, price_counts = np.unique(trad_array[:, 0], return_counts=True)
+    
+    # Point of Control (POC) - Price with the highest traded volume
+    pocT = unique_prices[np.argmax(summed_volumes)]
+
+    # Sort trades by price **only once**
+    #sorted_indices = trad_array[:, 0].argsort()
+    #mTradek = trad_array[sorted_indices]  # Sorted by price
+    priceList = sorted_trades[:, 0]  # Extract sorted price column
+
+    # Use NumPy to create bins
+    hist, bin_edges = np.histogram(unique_prices, bins=num)
+
+    # Preallocate arrays (Much faster than appending lists)
+    cptemp = np.zeros((len(hist), 4), dtype=object)  # Store bin data
+    zipList = np.zeros((len(hist), 3), dtype=int)    # Store buy/sell/neutral counts
+
+    # Vectorized bin searching
+    start_indices = np.searchsorted(priceList, bin_edges[:-1], side='left')
+    end_indices = np.searchsorted(priceList, bin_edges[1:], side='right')
+
+    # Process each bin efficiently
+    for i in range(len(hist)):
+        bin_trades = sorted_trades[start_indices[i]:end_indices[i]]
+
+        if len(bin_trades) > 0:
+            # Efficient volume sum calculations
+            pziCount = np.sum(bin_trades[:, 1].astype(int))
+
+            # Efficient buy/sell/neutral counts using np.where
+            #acount = np.sum(bin_trades[:, 1][np.where(bin_trades[:, 5] == 'A')].astype(int))
+            #bcount = np.sum(bin_trades[:, 1][np.where(bin_trades[:, 5] == 'B')].astype(int))
+            #ncount = np.sum(bin_trades[:, 1][np.where(bin_trades[:, 5] == 'N')].astype(int))
+
+            cptemp[i] = [bin_edges[i], pziCount, i, bin_edges[i+1]]
+            #zipList[i] = [acount, bcount, ncount]
+
+    # Convert list for further processing (avoiding slow append operations)
+    cptemp = cptemp.tolist()
+
+    # Append countCandle() results (Still needs to loop, but optimized)
+    for i in range(len(cptemp)):
+        cptemp[i] += countCandle(trad, [], cptemp[i][0], cptemp[i][3], df['name'].iloc[0], {})
+
+    # Merge zipList into cptemp
+    cptemp = [cptemp[i] + zipList[i].tolist() for i in range(len(cptemp))]
+
+    # Sort results by total volume (Final sorting step)
+    sortadlist = sorted(cptemp, key=lambda stock: float(stock[1]), reverse=True)
+
+    return [cptemp, sortadlist, pocT]
+
+
 def valueAreaV3(lst):
     # Ensure list is not empty
     if not lst:
@@ -573,6 +657,28 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
         ratios = np.divide(timeDict_np, sums[:, None], where=sums[:, None] != 0)  # Avoid division by zero
 
         timeFrame = [[timee, ""] + timeDict[timee] + ratios[i].tolist() for i, timee in enumerate(timeDict)]  
+        
+        timestamps = df_resampled2['timestamp'].values
+        times = df_resampled2['time'].values
+        
+        valist = []
+        for it in range(len(make)):
+            # Slice AllTrades efficiently
+            if it+1 < len(make):
+                tempList = all_trades_np[:make[it+1][2]]  # Faster slicing
+            else:
+                tempList = all_trades_np
+                
+            df_slice = df_resampled2.iloc[:it+1]  # Faster than df[:it+1]
+            temphs = historV1(df_slice, 500, {}, tempList.tolist(), [])
+            vA = valueAreaV3(temphs[0])
+            valist.append(vA + [timestamps[it], times[it], temphs[2]])
+            
+            
+        df_resampled2['dailyLowVA'] = pd.Series([i[0] for i in valist])
+        df_resampled2['dailyHighVA'] = pd.Series([i[1] for i in valist])
+        df_resampled2['dailyPOC']  = pd.Series([i[2] for i in valist])
+        df_resampled2['dailyPOC2']  = pd.Series([i[5] for i in valist])
 
 
         topBuys = []
@@ -777,6 +883,9 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
     fig.add_trace(go.Scatter(x=df.index, y=df['allHighVA'], mode='lines', opacity=0.3, name='allHighVA', line=dict(color='purple')))
     fig.add_trace(go.Scatter(x=df.index, y=df['allLowVA'], mode='lines', opacity=0.3, name='allLowVA', line=dict(color='purple')))
     
+    
+    fig.add_trace(go.Scatter(x=df.index, y=df['dailyPOC'], mode='lines',name='dailyPOC', hovertext=df['time'].tolist(), marker_color='#16FF32'))
+    fig.add_trace(go.Scatter(x=df.index, y=df['dailyPOC2'], mode='lines',name='dailyPOC2', hovertext=df['time'].tolist(), marker_color='#16FF32'))
         
 
     fig.add_trace(go.Candlestick(
