@@ -40,6 +40,7 @@ from concurrent.futures import ThreadPoolExecutor
 from io import StringIO  
 from scipy.stats import percentileofscore
 #import gc
+from collections import Counter
 
 
 def download_data(bucket_name, blob_name):
@@ -662,6 +663,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
         times = df_resampled2['time'].values
         
         valist = []
+        top100perCandle = []
         for it in range(len(make)):
             # Slice AllTrades efficiently
             if it+1 < len(make):
@@ -674,6 +676,36 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             vA = valueAreaV3(temphs[0])
             valist.append(vA + [timestamps[it], times[it], temphs[2]])
             
+            
+            start_idx = make[0][2]
+            end_idx = make[tr][2]
+        
+            # Get trades for this time window
+            tempLt = all_trades_np[start_idx:end_idx]
+            
+            top100ThatDay = tempLt[np.argsort(tempLt[:, 1].astype(int))][-100:].tolist()
+            
+            if tr <= 0:
+                lower_bound = make[tr][0]
+                upper_bound = make[tr+1][0]
+            else:
+                lower_bound = make[tr-1][0]
+                upper_bound = make[tr][0]
+            
+            # Filter based on timestamp range (index 2)
+            filtered_orders = [order for order in top100ThatDay if lower_bound <= order[2] <= upper_bound]
+            
+             
+            sides = [order[5] for order in filtered_orders]
+            side_counts = Counter(sides)
+            
+            # Convert to list: [count_B, count_A]
+            top100perCandle += [[side_counts.get('B', 0), side_counts.get('A', 0)]]
+            
+            
+        df_resampled2['topOrderOverallBuyInCandle'] = [i[0] for i in top100perCandle]
+        df_resampled2['topOrderOverallSellInCandle'] = [i[1] for i in top100perCandle]
+        df_resampled2['topDiffOverallInCandle']  = [i[0]-i[1] for i in top100perCandle]
             
         df_resampled2['dailyLowVA'] = pd.Series([i[0] for i in valist])
         df_resampled2['dailyHighVA'] = pd.Series([i[1] for i in valist])
