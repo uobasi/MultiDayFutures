@@ -641,7 +641,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             if len(tempList) > 0:
 
                 # Store top 100 largest trades (fast NumPy sorting)
-                sorted_trades = tempList[np.argsort(tempList[:, 1].astype(int))][-200:].tolist()
+                sorted_trades = tempList[np.argsort(tempList[:, 1].astype(int))][-100:].tolist()
                 troPerCandle.append([make[tr][1], sorted_trades])
 
                 # Aggregate buy/sell/neutral trade volumes
