@@ -330,8 +330,8 @@ def butter_lowpass_realtime(data, cutoff=0.05, order=2):
     return smoothed_data
 
 
-symbolNumList =  ['4916', '42005804', '42003068', '134373', '287', '42009162', '42007178', '42008377']
-symbolNameList = ['ES', 'NQ', 'YM','CL', 'GC', 'RTY', 'MBT', 'MET']
+symbolNumList =  ['14160', '42008487', '42003287']
+symbolNameList = ['ES', 'NQ', 'YM']
 
 
 intList = [str(i) for i in range(3,70)]
