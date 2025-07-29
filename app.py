@@ -1029,12 +1029,12 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
     #print(list_of_strings)
         
     
-    fig = make_subplots(rows=2, cols=2, shared_xaxes=True, shared_yaxes=True,
-                            specs=[[{}, {}],
-                                   [{}, {}]], #[{"colspan": 1}, {}] [{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
+    fig = make_subplots(rows=1, cols=2, shared_xaxes=True, shared_yaxes=True,
+                            specs=[[{}, {}],], #[{"colspan": 1}, {}] [{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
                              horizontal_spacing=0.00, vertical_spacing=0.00, # subplot_titles=(stkName +' '+ str(datetime.now().time()))' (Sell:'+str(putDec)+' ('+str(round(NumPut,2))+') | '+'Buy:'+str(CallDec)+' ('+str(round(NumCall,2))+') \n '+' (Sell:'+str(thputDec)+' ('+str(round(thNumPut,2))+') | '+'Buy:'+str(thCallDec)+' ('+str(round(thNumCall,2))+') \n '
-                             column_widths=[0.90,0.10],row_width=[0.20, 0.80,] ) #, column_widths=[0.85,0.15], 62
+                             column_widths=[0.90,0.10], ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 62
 
+        
         
     
     
@@ -1268,7 +1268,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             name='AllBuyImbalance Overall'
         ), row=1, col=1)
         
-        
+    '''    
     colors = ['maroon']
     for val in range(1,len(df['topDiffOverallInCandle'])):
         if df['topDiffOverallInCandle'][val] > 0:
@@ -1281,10 +1281,13 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 color='crimson' 
         colors.append(color)
     fig.add_trace(go.Bar(x=df.index, y=df['topDiffOverallInCandle'], marker_color=colors), row=2, col=1)
-     
+    '''
     
     
-    for i in range(8):
+    
+    
+    
+    for i in range(8):#8
         col = f"tp100allDay-{i}"
         fig.add_trace(
             go.Scatter(
@@ -1552,4 +1555,4 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
 if __name__ == '__main__':
     app.run_server(debug=False, host='0.0.0.0', port=8080)
     #app.run_server(debug=False, use_reloader=False)  
- 
+    
