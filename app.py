@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+Created on Wed Jul  9 12:30:08 2025
+
+@author: uobas
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Sun Apr 27 15:58:00 2025
 
 @author: uobas
@@ -41,6 +48,7 @@ from io import StringIO
 from scipy.stats import percentileofscore
 #import gc
 from collections import Counter
+from collections import defaultdict
 
 
 def download_data(bucket_name, blob_name):
@@ -289,6 +297,66 @@ def combine_histogram_data(hist1, hist2):
     return [new_bins, new_poc]
 
 
+
+def combine_histogram_data_2(hist1, hist2, bins=100):
+    """
+    Combine two histograms of the form:
+       hist = ([ [start, volume, idx, end], … ], poc)
+    into a single `bins`-bin histogram spanning the full min→max range,
+    redistributing each original bin’s volume proportionally by overlap.
+    Returns (new_bins, new_poc), where
+      new_bins = [ [start_i, vol_i, i, end_i], … ]
+      new_poc  = midpoint of the bin with the highest combined volume
+    """
+    # Unpack
+    data1, _ = hist1
+    data2, _ = hist2
+
+    # Find global min & max edges
+    all_starts = [row[0] for row in data1] + [row[0] for row in data2]
+    all_ends   = [row[3] for row in data1] + [row[3] for row in data2]
+    global_min = min(all_starts)
+    global_max = max(all_ends)
+
+    # Build bin edges
+    edges = np.linspace(global_min, global_max, bins+1)
+    bin_starts = edges[:-1]
+    bin_ends   = edges[1:]
+
+    # Prepare accumulator
+    combined_vol = np.zeros(bins, dtype=float)
+
+    # Helper to add one histogram’s volumes
+    def add_hist(data):
+        for start, vol, _, end in data:
+            width = end - start
+            # compute overlap of [start,end] with each new bin
+            overlap = np.minimum(bin_ends, end) - np.maximum(bin_starts, start)
+            overlap = np.clip(overlap, 0, None)
+            # fraction of this old bin that falls in each new bin
+            frac = overlap / width
+            combined_vol[:] += vol * frac
+
+    # Distribute both
+    add_hist(data1)
+    add_hist(data2)
+
+    # Round to int
+    combined_vol = np.rint(combined_vol).astype(int)
+
+    # Build output new_bins list
+    new_bins = [
+        [float(bin_starts[i]), int(combined_vol[i]), i, float(bin_ends[i])]
+        for i in range(bins)
+    ]
+
+    # POC = midpoint of the bin with max volume
+    poc_idx = int(combined_vol.argmax())
+    poc_price = float((bin_starts[poc_idx] + bin_ends[poc_idx]) / 2)
+
+    return [new_bins, poc_price]
+
+
 def find_clusters(numbers, threshold):
     clusters = []
     current_cluster = [numbers[0]]
@@ -330,6 +398,30 @@ def butter_lowpass_realtime(data, cutoff=0.05, order=2):
     return smoothed_data
 
 
+
+def find_clusters_1(data, threshold):
+    if not data:
+        return []
+
+    clusters = []
+    current_cluster = [data[0]]
+    current_sum = data[0][1]
+
+    for i in range(1, len(data)):
+        prev_price = current_cluster[-1][0]
+        curr_price = data[i][0]
+
+        if abs(curr_price - prev_price) <= threshold:
+            current_cluster.append(data[i])
+            current_sum += data[i][1]
+        else:
+            clusters.append((current_cluster, current_sum))
+            current_cluster = [data[i]]
+            current_sum = data[i][1]
+
+    clusters.append((current_cluster, current_sum))
+    return clusters
+
 symbolNumList =  ['14160', '42008487', '42003287']
 symbolNameList = ['ES', 'NQ', 'YM']
 
@@ -348,15 +440,41 @@ intList = [str(i) for i in range(3,70)]
 # Initialize Google Cloud Storage client
 client = storage.Client()
 bucket_name = "stockapp-storage"
-prefix = "oldData/NQ"  # Filter files in 'oldData/' folder containing "NQ"
 bucket = client.bucket(bucket_name)
 
+import re
+ftName = 'NQ' 
+# Initialize Google Cloud Storage client
+gclient = storage.Client()
+bucket_name = "stockapp-storage"
+prefix = ftName+"OverallTopOrders/"  # Filter files in 'oldData/' folder containing "NQ"
+
+# Get bucket reference
+bucket = gclient.bucket(bucket_name)
+
+# List all files in the 'oldData/' directory containing "NQ"
+blobs = list(bucket.list_blobs(prefix=prefix))
+
+# Regex to extract the first date occurrence (_YYYY-MM-DD_)
+date_pattern = re.compile(r"_(\d{4}-\d{2}-\d{2})_")
+
+# Function to extract the first date occurrence
+def extract_first_date(filename):
+    match = date_pattern.search(filename)  # Find the first match
+    return match.group(1) if match else "0000-00-00"  # Default for sorting safety
+
+# Filter & sort files by the first extracted date
+filtered_files = sorted(
+    [blob.name for blob in blobs if ftName in blob.name],
+    key=lambda x: extract_first_date(x),  # Sort by first date match
+    reverse=False  # Sort from latest to oldest
+)
 
 #import duckdb
 #from google.api_core.exceptions import NotFound
 from dash import Dash, dcc, html, Input, Output, callback, State, callback_context
-initial_inter = 2000000  # Initial interval #210000#250000#80001
-subsequent_inter = 250000  # Subsequent interval
+initial_inter = 1800000  # Initial interval #210000#250000#80001
+subsequent_inter = 300000  # Subsequent interval
 app = Dash()
 app.title = "EnVisage"
 app.layout = html.Div([
@@ -486,31 +604,8 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
         # Convert to DataFrame using StringIO
         prevDf = pd.read_csv(StringIO(csv_data))
         
-        stored_data = {'df': prevDf.values.tolist()}
-        
-        '''
-        fs = gcsfs.GCSFileSystem()
-        
-        # Reading directly
-        tradeDf = pd.read_parquet(
-            f'gs://stockapp-storage/{stkName}_combined_trades.parquet',
-            filesystem=fs,
-            engine='pyarrow'
-        )
-        
-        #tradeDf = duckdb.read_parquet(f"gs://stockapp-storage/{stkName}_combined_trades.parquet")
-        #tradeDf = duckdb.read_parquet("https://storage.googleapis.com/stockapp-storage/NQ_combined_trades.parquet?x-goog-signature=1918be266c4ed0c1e1fb76ba5b971044d8e6fa0c9682821df5484d7964dcbe819dbf2acff7876131016f558ed0e937382b79e09181e954b4b0be9fc7339eac3ff5a5cf41baf9192f9a6819065944f9ab61045fba9f84a7e6a9b7f8d55e5bf754afe61a3096137204556ca618358c7e410030332163c12d0a2c39354694b743051f68612bc90aa452e10af00fa0810a3e3b9fa30cc1dead57a37a3a7df0327c0fdbd2b3e752e21bc8facb8bc1724431685a4b51c2cffcd3b984b9ee24b1c8cdcba1002474344524127adfab1222b48e9f7c2d4ac19cfa686dee1aa69eda8bf06e04d2e634e732e5ddf06beb2de6dc361a15594f834c166c987eff9e399571c8aa&x-goog-algorithm=GOOG4-RSA-SHA256&x-goog-credential=stockapp-401615%40appspot.gserviceaccount.com%2F20250423%2Fus%2Fstorage%2Fgoog4_request&x-goog-date=20250423T180354Z&x-goog-expires=43200&x-goog-signedheaders=host")
-        #import gcsfs
-        #import duckdb
-        
-        #fs = gcsfs.GCSFileSystem()
-        #fs.get('stockapp-storage/NQ_combined_trades.parquet', '/tmp/temp.parquet')
-        #tradeDf = duckdb.read_parquet('/tmp/temp.parquet')
-        
-        stored_data = {'df': prevDf.values.tolist(), 'trades': tradeDf.values.tolist()}
-        del tradeDf
-        gc.collect()
-        '''
+        #stored_data = {'df': prevDf.values.tolist()}
+
         with ThreadPoolExecutor(max_workers=2) as executor:
             #if sname != previous_stkName:
             # Download everything when stock name changes
@@ -663,7 +758,6 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
         times = df_resampled2['time'].values
         
         valist = []
-        top100perCandle = []
         for it in range(len(make)):
             # Slice AllTrades efficiently
             if it+1 < len(make):
@@ -676,36 +770,72 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             vA = valueAreaV3(temphs[0])
             valist.append(vA + [timestamps[it], times[it], temphs[2]])
             
-            
-            start_idx = make[0][2]
-            end_idx = make[tr][2]
         
-            # Get trades for this time window
-            tempLt = all_trades_np[start_idx:end_idx]
+        top100perCandle = []
+        for it in range(1, len(make)):  # Start from 1 to allow it-1 access
+            start_idx = make[0][2]  # Always start from the beginning of the day's trades
+            end_idx = make[it][2]   # Up to current candle
+        
+            # Get trades in the window
+            trades_in_window = all_trades_np[start_idx:end_idx]
+        
+            # Get top 200 trades by quantity
+            top_trades = trades_in_window[np.argsort(trades_in_window[:, 1].astype(int))][-200:].tolist()
+        
+            # Filter trades for the current candle interval
+            lower_bound = make[it - 1][0]
+            upper_bound = make[it][0]
+            filtered_orders = [order for order in top_trades if lower_bound <= order[2] <= upper_bound]
+        
+            # Sum order quantities by side
+            side_sums = defaultdict(float)
+            for order in filtered_orders:
+                side = order[5]
+                side_sums[side] += order[1]
+        
+            # Append summary for current candle
+            top100perCandle.append([
+                make[it - 1][1],  # Time label
+                side_sums.get('B', 0),
+                side_sums.get('A', 0),
+                side_sums.get('B', 0) - side_sums.get('A', 0)
+            ])
             
-            top100ThatDay = tempLt[np.argsort(tempLt[:, 1].astype(int))][-100:].tolist()
-            
-            if tr <= 0:
-                lower_bound = make[tr][0]
-                upper_bound = make[tr+1][0]
-            else:
-                lower_bound = make[tr-1][0]
-                upper_bound = make[tr][0]
-            
-            # Filter based on timestamp range (index 2)
-            filtered_orders = [order for order in top100ThatDay if lower_bound <= order[2] <= upper_bound]
-            
-             
-            sides = [order[5] for order in filtered_orders]
-            side_counts = Counter(sides)
-            
-            # Convert to list: [count_B, count_A]
-            top100perCandle += [[side_counts.get('B', 0), side_counts.get('A', 0)]]
-            
-            
-        df_resampled2['topOrderOverallBuyInCandle'] = [i[0] for i in top100perCandle]
-        df_resampled2['topOrderOverallSellInCandle'] = [i[1] for i in top100perCandle]
-        df_resampled2['topDiffOverallInCandle']  = [i[0]-i[1] for i in top100perCandle]
+        
+        final_start = make[-1][0]
+        final_time_label = make[-1][1]
+        
+        # Use all trades from the beginning of the day
+        trades_in_window = all_trades_np[0:]
+        top_trades = trades_in_window[np.argsort(trades_in_window[:, 1].astype(int))][-200:].tolist()
+        
+        # Only filter for trades **after the final_start**
+        filtered_orders = [order for order in top_trades if order[2] >= final_start]
+                
+        '''
+        trades_in_window = all_trades_np[0:]
+        lower_bound = make[it][0]
+        filtered_orders = [order for order in top_trades if order[2] >= lower_bound]
+        '''
+        side_sums = defaultdict(float)
+        for order in filtered_orders:
+            side = order[5]
+            side_sums[side] += order[1]
+        
+    
+        top100perCandle.append([
+            final_time_label,
+            side_sums.get('B', 0),
+            side_sums.get('A', 0),
+            side_sums.get('B', 0) - side_sums.get('A', 0)
+        ])
+        
+        #stored_data = {'df': prevDf.values.tolist()}
+        
+        
+        df_resampled2['topOrderOverallBuyInCandle'] = [i[1] for i in top100perCandle]
+        df_resampled2['topOrderOverallSellInCandle'] = [i[2] for i in top100perCandle]
+        df_resampled2['topDiffOverallInCandle']  = [i[3] for i in top100perCandle]
             
         df_resampled2['dailyLowVA'] = pd.Series([i[0] for i in valist])
         df_resampled2['dailyHighVA'] = pd.Series([i[1] for i in valist])
@@ -757,11 +887,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
         df_resampled2['topBuysPercent'] = ((df_resampled2['topBuys']) / (df_resampled2['topBuys']+df_resampled2['topSells']))
         df_resampled2['topSellsPercent'] = ((df_resampled2['topSells']) / (df_resampled2['topBuys']+df_resampled2['topSells']))
         
-        '''
-        df = pd.concat([prevDf, df_resampled2], ignore_index=True)
 
-        
-        '''
         
         dtime = df_resampled2['time'].dropna().values.tolist()
         dtimeEpoch = df_resampled2['timestamp'].dropna().values.tolist()
@@ -774,7 +900,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             allmake.append([dtimeEpoch[ttm],dtime[ttm],bisect.bisect_left(tradeEpoch, dtimeEpoch[ttm])]) #min(range(len(tradeEpoch)), key=lambda i: abs(tradeEpoch[i] - dtimeEpoch[ttm]))
             alltimeDict[dtime[ttm]] = [0,0,0]
         
-        blob = bucket.blob('DailyNQlastVP')
+        blob = bucket.blob('Daily'+stkName+'lastVP')
         
         # Download the blob content as text
         blob_text = blob.download_as_text()
@@ -786,6 +912,8 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             [float(x.strip()) for x in line.split(',')]
             for line in lastVp
         ]
+        
+        
             
         allvalist =[]
         prevHist = []
@@ -794,13 +922,13 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 tempList = AllTrades[allmake[it][2]:allmake[it+1][2]]
                 if it == 0:
                     temphs = historV2(df_resampled2[:it+1],100,{}, tempList, [])
-                    cHist = combine_histogram_data([lastVp,0], temphs)
+                    cHist = combine_histogram_data_2([lastVp,0], temphs)
                     prevHist = cHist
                     vA = valueAreaV3(cHist[0])
                     allvalist.append(vA  + [df_resampled2['timestamp'][it], df_resampled2['time'][it], cHist[1]]) 
                 else:
                     temphs = historV2(df_resampled2[:it+1],100,{}, tempList, [])
-                    cHist = combine_histogram_data(prevHist, temphs)
+                    cHist = combine_histogram_data_2(prevHist, temphs)
                     prevHist = cHist
                     vA = valueAreaV3(cHist[0])
                     allvalist.append(vA  + [df_resampled2['timestamp'][it], df_resampled2['time'][it], cHist[1]]) 
@@ -808,24 +936,31 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 tempList = AllTrades
                 temphs = historV2(df_resampled2[:it+1],100,{}, tempList, [])
                 if len(prevHist) == 0:
-                    cHist = combine_histogram_data([lastVp,0], temphs)
+                    cHist = combine_histogram_data_2([lastVp,0], temphs)
                 else:
-                    cHist = combine_histogram_data(prevHist, temphs)
+                    cHist = combine_histogram_data_2(prevHist, temphs)
                 prevHist = cHist
                 vA = valueAreaV3(cHist[0])
                 allvalist.append(vA  + [df_resampled2['timestamp'][it], df_resampled2['time'][it], cHist[1]]) 
             
             
         
+        stored_data = {'df': prevDf.values.tolist(), 'top100perCandle':top100perCandle, 'valist':valist, 'lastVp':cHist, 'allvalist':allvalist} 
+        
         df_resampled2['allLowVA'] = pd.Series([i[0] for i in allvalist])
         df_resampled2['allHighVA'] = pd.Series([i[1] for i in allvalist])
         df_resampled2['allPOC']  = pd.Series([i[2] for i in allvalist])
         df_resampled2['allPOC2']  = pd.Series([i[5] for i in allvalist])
         
-        #stored_data['allvalist'] = allvalist
 
                 
     df = pd.concat([prevDf, df_resampled2], ignore_index=True)
+    
+    #n_rows   = len(df)
+    #start_i  = int(n_rows * 0.97)
+    #df['1ema'] = df['close'].ewm(span=1, adjust=False).mean()
+    # 2) slice from that position to the end
+    #df = df.iloc[start_i:].reset_index(drop=True)
     
     
     df['alltopDiffNega'] = ((df['topBuys'] - df['topSells']).apply(lambda x: x if x < 0 else np.nan)).abs()
@@ -874,26 +1009,35 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
     top_sells = df['topSellsPercent'].tolist()
     top_buys_count = df['topBuys'].tolist()
     top_sells_count = df['topSells'].tolist()
+    topOrderOverallBuyInCandle = df['topOrderOverallBuyInCandle'].tolist()
+    topOrderOverallSellInCandle = df['topOrderOverallSellInCandle'].tolist()
+    topDiffOverallInCandle = df['topDiffOverallInCandle'].tolist()
     
     # Zip the three lists together
-    zipped = zip(formatted_dates, top_buys, top_sells, top_buys_count, top_sells_count)
+    zipped = zip(formatted_dates, top_buys, top_sells, top_buys_count, top_sells_count, topOrderOverallBuyInCandle, topOrderOverallSellInCandle, topDiffOverallInCandle)
     
     # Create a list of strings
     list_of_strings = [
     f"{dates}<br> Buys: {buy_count} : {round(buy_percent, 2)}<br> Sells: {sell_count} : {round(sell_percent, 2)}<br>"
-    for dates, buy_percent, sell_percent, buy_count, sell_count in zipped
+    f"<br>OverallTopOrders in Candle: <br>"
+    f"Buys : ({topOrderOverallBuyInCandle})<br>"
+    f"Sells : ({topOrderOverallSellInCandle})<br>"
+    f"Diff : ({topDiffOverallInCandle})<br>"
+    for dates, buy_percent, sell_percent, buy_count, sell_count, topOrderOverallBuyInCandle, topOrderOverallSellInCandle, topDiffOverallInCandle in zipped
     ]
     
     #print(list_of_strings)
         
     
-    fig = make_subplots(rows=1, cols=2, shared_xaxes=True, shared_yaxes=True,
-                            specs=[[{}, {}],], #[{"colspan": 1}, {}] [{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
+    fig = make_subplots(rows=2, cols=2, shared_xaxes=True, shared_yaxes=True,
+                            specs=[[{}, {}],
+                                   [{}, {}]], #[{"colspan": 1}, {}] [{"colspan": 1},{},][{}, {}, ]'+ '<br>' +' ( Put:'+str(putDecHalf)+'('+str(NumPutHalf)+') | '+'Call:'+str(CallDecHalf)+'('+str(NumCallHalf)+') '
                              horizontal_spacing=0.00, vertical_spacing=0.00, # subplot_titles=(stkName +' '+ str(datetime.now().time()))' (Sell:'+str(putDec)+' ('+str(round(NumPut,2))+') | '+'Buy:'+str(CallDec)+' ('+str(round(NumCall,2))+') \n '+' (Sell:'+str(thputDec)+' ('+str(round(thNumPut,2))+') | '+'Buy:'+str(thCallDec)+' ('+str(round(thNumCall,2))+') \n '
-                             column_widths=[0.90,0.10], ) #,row_width=[0.30, 0.70,] column_widths=[0.85,0.15], 62
+                             column_widths=[0.90,0.10],row_width=[0.20, 0.80,] ) #, column_widths=[0.85,0.15], 62
 
         
-
+    
+    
     fig.add_trace(go.Candlestick(x=df.index,
                                  open=df['open'],
                                  high=df['high'],
@@ -909,10 +1053,16 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
     #fig.add_trace(go.Scatter(x=df.index, y=df['LowVA'], mode='lines', opacity=0.3, name='LowVA', line=dict(color='purple')))
     #fig.add_trace(go.Scatter(x=df.index, y=df['HighVA'], mode='lines', opacity=0.3, name='HighVA', line=dict(color='purple')))
 
-
+    #if (abs(df['allPOC'][len(df)-1] - df['1ema'][len(df)-1]) / ((df['allPOC'][len(df)-1] + df['1ema'][len(df)-1]) / 2)) * 100 <= 3.25 or (abs(df['allPOC'][len(df)-1] - df['1ema'][len(df)-1]) / ((df['allPOC'][len(df)-1] + df['1ema'][len(df)-1]) / 2)) * 100 <= 3.25 :
     fig.add_trace(go.Scatter(x=df.index, y=df['allPOC'], mode='lines',name='allPOC', hovertext=df['time'].tolist(), marker_color='#0000FF'))
+    
+    #if (abs(df['allPOC2'][len(df)-1] - df['1ema'][len(df)-1]) / ((df['allPOC2'][len(df)-1] + df['1ema'][len(df)-1]) / 2)) * 100 <= 3.25 or (abs(df['allPOC2'][len(df)-1] - df['1ema'][len(df)-1]) / ((df['allPOC2'][len(df)-1] + df['1ema'][len(df)-1]) / 2)) * 100 <= 3.25 :
     fig.add_trace(go.Scatter(x=df.index, y=df['allPOC2'], mode='lines',name='allPOC2', hovertext=df['time'].tolist(), marker_color='#0000FF'))
+    
+    #if (abs(df['allHighVA'][len(df)-1] - df['1ema'][len(df)-1]) / ((df['allHighVA'][len(df)-1] + df['1ema'][len(df)-1]) / 2)) * 100 <= 3.25 or (abs(df['allHighVA'][len(df)-1] - df['1ema'][len(df)-1]) / ((df['allHighVA'][len(df)-1] + df['1ema'][len(df)-1]) / 2)) * 100 <= 3.25 :
     fig.add_trace(go.Scatter(x=df.index, y=df['allHighVA'], mode='lines', opacity=0.3, name='allHighVA', line=dict(color='purple')))
+    
+    #if (abs(df['allLowVA'][len(df)-1] - df['1ema'][len(df)-1]) / ((df['allLowVA'][len(df)-1] + df['1ema'][len(df)-1]) / 2)) * 100 <= 3.25 or (abs(df['allLowVA'][len(df)-1] - df['1ema'][len(df)-1]) / ((df['allLowVA'][len(df)-1] + df['1ema'][len(df)-1]) / 2)) * 100 <= 3.25 :
     fig.add_trace(go.Scatter(x=df.index, y=df['allLowVA'], mode='lines', opacity=0.3, name='allLowVA', line=dict(color='purple')))
     
     
@@ -953,7 +1103,35 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
              ),
         name='' ),
     row=1, col=1)
+    '''
+    last_ema = df['1ema'].iloc[-1]
 
+    # 2) threshold in percent
+    threshold = 4.25
+    
+    # 3) filter the bars in cHist[0]
+    filtered = [i for i in cHist[0] if abs(i[0] - last_ema) / ((i[0] + last_ema) / 2) * 100 <= threshold or abs(i[3] - last_ema) / ((i[3] + last_ema) / 2) * 100 <= threshold]
+    
+
+    # 4) build x, y, hovertext from the filtered list (reversed if you like)
+    x_vals      = [i[1] for i in filtered[::-1]]
+    y_labels    = [i[0] for i in filtered[::-1]]
+    hover_texts = [f"Edge: {i[0]} – {i[3]}" for i in filtered[::-1]]
+    
+    # 5) add the Bar trace
+    fig.add_trace(
+        go.Bar(
+            x            = x_vals,
+            y            = y_labels,
+            orientation  = 'h',
+            textposition = 'auto',
+            marker_color = 'teal',
+            hovertext    = hover_texts
+        ),
+        row=1, col=2
+    )
+    
+    '''
     fig.add_trace(go.Bar(
         x=[i[1] for i in cHist[0][::-1]],  # bar length 
         y=[i[0] for i in cHist[0][::-1]],  # y-axis labels
@@ -965,6 +1143,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
     ),
         row=1, col=2
     )
+    
 
 
     if len(callCandImb) > 0:
@@ -983,6 +1162,12 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 f"({df.loc[i, 'topBuys']}) {round(df.loc[i, 'topBuysPercent'], 2)} Bid "
                 f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask<br>"
                 f"{df.loc[i, 'formatted_date']}"
+                f"<br>OverallTopOrders in Candle: <br>"
+                f"Buys : ({df.loc[i, 'topOrderOverallBuyInCandle']})<br>"
+                f"Sells : ({df.loc[i,'topOrderOverallSellInCandle']})<br>"
+                f"Diff : ({df.loc[i,'topDiffOverallInCandle']})<br>"
+                
+                
                 for i in callCandImb
             ],
             hoverlabel=dict(
@@ -1009,6 +1194,10 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 f"({df.loc[i, 'topBuys']}) {round(df.loc[i, 'topBuysPercent'], 2)} Bid "
                 f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask<br>"
                 f"{df.loc[i, 'formatted_date']}"
+                f"<br>OverallTopOrders in Candle: <br>"
+                f"Buys : ({df.loc[i, 'topOrderOverallBuyInCandle']})<br>"
+                f"Sells : ({df.loc[i,'topOrderOverallSellInCandle']})<br>"
+                f"Diff : ({df.loc[i,'topDiffOverallInCandle']})<br>"
                 for i in putCandImb
             ],
             hoverlabel=dict(
@@ -1036,6 +1225,10 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 f"({df.loc[i, 'topBuys']}) {round(df.loc[i, 'topBuysPercent'], 2)} Bid "
                 f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask<br>"
                 f"{df.loc[i, 'formatted_date']}"
+                f"<br>OverallTopOrders in Candle: <br>"
+                f"Buys : ({df.loc[i, 'topOrderOverallBuyInCandle']})<br>"
+                f"Sells : ({df.loc[i,'topOrderOverallSellInCandle']})<br>"
+                f"Diff : ({df.loc[i,'topDiffOverallInCandle']})<br>"
                 for i in callCandImb_1
             ],
             hoverlabel=dict(
@@ -1062,6 +1255,10 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 f"({df.loc[i, 'topBuys']}) {round(df.loc[i, 'topBuysPercent'], 2)} Bid "
                 f"({df.loc[i, 'topSells']}) {round(df.loc[i, 'topSellsPercent'], 2)} Ask<br>"
                 f"{df.loc[i, 'formatted_date']}"
+                f"<br>OverallTopOrders in Candle: <br>"
+                f"Buys : ({df.loc[i, 'topOrderOverallBuyInCandle']})<br>"
+                f"Sells : ({df.loc[i,'topOrderOverallSellInCandle']})<br>"
+                f"Diff : ({df.loc[i,'topDiffOverallInCandle']})<br>"
                 for i in putCandImb_1
             ],
             hoverlabel=dict(
@@ -1070,7 +1267,35 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             ),
             name='AllBuyImbalance Overall'
         ), row=1, col=1)
+        
+        
+    colors = ['maroon']
+    for val in range(1,len(df['topDiffOverallInCandle'])):
+        if df['topDiffOverallInCandle'][val] > 0:
+            color = 'teal'
+            if df['topDiffOverallInCandle'][val] > df['topDiffOverallInCandle'][val-1]:
+                color = '#54C4C1' 
+        else:
+            color = 'maroon'
+            if df['topDiffOverallInCandle'][val] < df['topDiffOverallInCandle'][val-1]:
+                color='crimson' 
+        colors.append(color)
+    fig.add_trace(go.Bar(x=df.index, y=df['topDiffOverallInCandle'], marker_color=colors), row=2, col=1)
      
+    
+    
+    for i in range(8):
+        col = f"tp100allDay-{i}"
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df[col],
+                mode="lines",
+                name=col
+            )
+        )
+
+
     '''
     if layout_data:
         if 'xaxis.range[0]' in layout_data and 'xaxis.range[1]' in layout_data:
@@ -1101,8 +1326,8 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
         row=2, col=1
     )
     '''
-            
-    blob = bucket.blob('DailyNQtopOrders')
+    '''        
+    blob = bucket.blob('Daily'+stkName+'topOrders')
     
     # Download the blob content as text
     blob_text = blob.download_as_text()
@@ -1135,16 +1360,81 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
     
     combined_trades_sorted = combined_trades.sort_values(by=combined_trades.columns[1], ascending=False)
     combined_trades_sorted = combined_trades_sorted.iloc[:1000]
-    prices = combined_trades_sorted.iloc[:, 0].sort_values().tolist()  # Sorted list of prices
+    #prices = combined_trades_sorted.iloc[:, 0,1].sort_values().tolist()  # Sorted list of prices
+    prices = combined_trades_sorted.iloc[:, [0, 1, 5]].sort_values(by=combined_trades_sorted.columns[0]).values.tolist()
 
     
-    differences = [abs(prices[i + 1] - prices[i]) for i in range(len(prices) - 1)]
+    differences = [abs(prices[i + 1][0] - prices[i][0]) for i in range(len(prices) - 1)]
     average_difference = sum(differences) / len(differences)
 
     # Step 3: Find clusters
-    cdata = find_clusters(prices, average_difference)
+    cdata = find_clusters_1(prices, average_difference)
 
-    mazz = max(len(cluster) for cluster in cdata)
+    
+    #mazz = sum(cluster[1] for cluster in cdata) / len(cdata)
+    volumes = [cluster[1] for cluster in cdata]
+    mazz = np.percentile(volumes, 70) 
+    max_volume = max(cluster[1] for cluster in cdata if cluster[1] > mazz)
+    
+    
+    for cluster in cdata:
+        if cluster[1] > mazz:
+            #for i in cluster[0]:
+            maxNum = max([i[0] for i in cluster[0]])
+            minNum = min([i[0] for i in cluster[0]]) 
+            bidCount = sum([i[1] for i in cluster[0] if i[2] == 'B'])
+            askCount = sum([i[1] for i in cluster[0] if i[2] == 'A'])
+            totalVolume = bidCount + askCount
+            if totalVolume > 0:
+                askDec = round(askCount / totalVolume, 2)
+                bidDec = round(bidCount / totalVolume, 2)
+            else:
+                askDec = bidDec = 0
+
+            opac = round(cluster[1] / max_volume,3)
+            #if (abs(float(maxNum) - df['1ema'][len(df)-1]) / ((float(maxNum) + df['1ema'][len(df)-1]) / 2)) * 100 <= 3.25 or (abs(float(minNum) - df['1ema'][len(df)-1]) / ((float(minNum) + df['1ema'][len(df)-1]) / 2)) * 100 <= 3.25 :
+            fillcolor = (
+                "crimson" if askCount > bidCount else
+                "teal" if bidCount > askCount else
+                "gray"
+            )
+            linecolor = f'rgba(220,20,60,{opac})' if askCount > bidCount else (
+                        f'rgba(0,139,139,{opac})' if bidCount > askCount else 'gray')
+                
+            fig.add_shape(
+                type="rect",
+                y0=minNum, y1=maxNum, x0=-1, x1=len(df),
+                fillcolor=fillcolor,
+                opacity=opac#round(cluster[1] / max_volume,3)
+            )
+                
+            # Upper line
+            fig.add_trace(go.Scatter(
+                x=df.index,
+                y=[maxNum] * len(df),
+                line_color=linecolor,#f"rgba(128, 128, 128, {round(cluster[1] / max_volume,3)})",
+                text=f"{maxNum} : {cluster[1]}",
+                textposition="bottom left",
+                name=f"{maxNum} : {cluster[1]}",
+                showlegend=False,
+                mode='lines'
+            ), row=1, col=1)
+
+            # Lower line
+            fig.add_trace(go.Scatter(
+                x=df.index,
+                y=[minNum] * len(df),
+                line_color=linecolor,#f"rgba(128, 128, 128, {round(cluster[1] / max_volume,3)})",
+                text=f"{minNum} : {cluster[1]}",
+                textposition="bottom left",
+                name=f"{minNum} : {cluster[1]}",
+                showlegend=False,
+                mode='lines'
+            ), row=1, col=1)
+     
+    
+    
+    #mazz = max(len(cluster) for cluster in cdata)
     clustercount = 5
 
     for cluster in cdata:
@@ -1219,7 +1509,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             ), row=1, col=1)
             
             
-
+    '''
             
     fig.update_layout(title=ctime,
                           paper_bgcolor='#E5ECF6',
@@ -1261,4 +1551,5 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
         
 if __name__ == '__main__':
     app.run_server(debug=False, host='0.0.0.0', port=8080)
-    #app.run_server(debug=False, use_reloader=False)        
+    #app.run_server(debug=False, use_reloader=False)  
+ 
