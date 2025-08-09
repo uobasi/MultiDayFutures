@@ -1281,7 +1281,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 color='crimson' 
         colors.append(color)
     fig.add_trace(go.Bar(x=df.index, y=df['topDiffOverallInCandle'], marker_color=colors), row=2, col=1)
-    '''
+    
     
     
     
@@ -1297,7 +1297,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
                 name=col
             )
         )
-
+    '''
 
     '''
     if layout_data:
@@ -1329,7 +1329,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
         row=2, col=1
     )
     '''
-    '''        
+           
     blob = bucket.blob('Daily'+stkName+'topOrders')
     
     # Download the blob content as text
@@ -1436,7 +1436,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             ), row=1, col=1)
      
     
-    
+    ''' 
     #mazz = max(len(cluster) for cluster in cdata)
     clustercount = 5
 
