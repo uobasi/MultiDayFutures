@@ -422,7 +422,7 @@ def find_clusters_1(data, threshold):
     clusters.append((current_cluster, current_sum))
     return clusters
 
-symbolNumList =  ['14160', '42008487', '42003287']
+symbolNumList =  ['294973', '158704', '42004629']
 symbolNameList = ['ES', 'NQ', 'YM']
 
 
