@@ -596,7 +596,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
 
     if True:#stored_data is None:
         print('Newstored')
-        blob = bucket.blob('Daily'+stkName)
+        blob = gclient.bucket('stockapp-storage-east1').blob('Daily'+stkName)
 
         # Download CSV content as string
         csv_data = blob.download_as_text()
@@ -610,8 +610,8 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             #if sname != previous_stkName:
             # Download everything when stock name changes
             futures = [
-                executor.submit(download_data, bucket, 'FuturesOHLC' + str(symbolNum)),
-                executor.submit(download_data, bucket, 'FuturesTrades' + str(symbolNum)),]
+                executor.submit(download_data, gclient.bucket('stockapp-storage-east1'), 'FuturesOHLC' + str(symbolNum)),
+                executor.submit(download_data, gclient.bucket('stockapp-storage-east1'), 'FuturesTrades' + str(symbolNum)),]
                 #executor.submit(download_daily_data, bucket, stkName)]
             
             FuturesOHLC, FuturesTrades = [future.result() for future in futures] #, prevDf
@@ -900,7 +900,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
             allmake.append([dtimeEpoch[ttm],dtime[ttm],bisect.bisect_left(tradeEpoch, dtimeEpoch[ttm])]) #min(range(len(tradeEpoch)), key=lambda i: abs(tradeEpoch[i] - dtimeEpoch[ttm]))
             alltimeDict[dtime[ttm]] = [0,0,0]
         
-        blob = bucket.blob('Daily'+stkName+'lastVP')
+        blob = gclient.bucket('stockapp-storage-east1').blob('Daily'+stkName+'lastVP')
         
         # Download the blob content as text
         blob_text = blob.download_as_text()
@@ -1330,7 +1330,7 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
     )
     '''
            
-    blob = bucket.blob('Daily'+stkName+'topOrders')
+    blob = gclient.bucket('stockapp-storage-east1').blob('Daily'+stkName+'topOrders')
     
     # Download the blob content as text
     blob_text = blob.download_as_text()
