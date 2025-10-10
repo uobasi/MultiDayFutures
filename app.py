@@ -439,14 +439,14 @@ intList = [str(i) for i in range(3,70)]
 
 # Initialize Google Cloud Storage client
 client = storage.Client()
-bucket_name = "stockapp-storage"
+bucket_name = "stockapp-storage-east1"
 bucket = client.bucket(bucket_name)
 
 import re
 ftName = 'NQ' 
 # Initialize Google Cloud Storage client
 gclient = storage.Client()
-bucket_name = "stockapp-storage"
+bucket_name = "stockapp-storage-east1"
 prefix = ftName+"OverallTopOrders/"  # Filter files in 'oldData/' folder containing "NQ"
 
 # Get bucket reference
