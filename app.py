@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+Created on Wed Nov  5 00:31:24 2025
+
+@author: uobas
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Wed Jul  9 12:30:08 2025
 
 @author: uobas
@@ -443,6 +450,7 @@ bucket_name = "stockapp-storage-east1"
 bucket = client.bucket(bucket_name)
 
 import re
+import csv
 ftName = 'NQ' 
 # Initialize Google Cloud Storage client
 gclient = storage.Client()
@@ -952,7 +960,27 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
         df_resampled2['allPOC']  = pd.Series([i[2] for i in allvalist])
         df_resampled2['allPOC2']  = pd.Series([i[5] for i in allvalist])
         
+    
+    blob = Blob('PrevDay', bucket) 
+    PrevDay = blob.download_as_text()
+        
 
+    csv_reader  = csv.reader(io.StringIO(PrevDay))
+
+    csv_rows = []
+    for row in csv_reader:
+        csv_rows.append(row)
+        
+    try:
+        df_resampled2['PreviousDayLVA'] = csv_rows[[i[4] for i in csv_rows].index(symbolNum)][0]
+        df_resampled2['PreviousDayHVA'] = csv_rows[[i[4] for i in csv_rows].index(symbolNum)][1]
+        df_resampled2['PreviousDayPOC'] = csv_rows[[i[4] for i in csv_rows].index(symbolNum)][2]
+        # previousDay = [csv_rows[[i[4] for i in csv_rows].index(symbolNum)][0], 
+        #                 csv_rows[[i[4] for i in csv_rows].index(symbolNum)][1], 
+        #                 csv_rows[[i[4] for i in csv_rows].index(symbolNum)][2],
+        #                 ]
+    except(ValueError):
+         previousDay = []
                 
     df = pd.concat([prevDf, df_resampled2], ignore_index=True)
     
@@ -1003,6 +1031,9 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
         
     previous_stkName = sname
     previous_interv = interv
+    
+    
+    
     
     formatted_dates = df['formatted_date'].tolist()
     top_buys = df['topBuysPercent'].tolist()
@@ -1068,6 +1099,14 @@ def update_graph_live(n_intervals, relayout_data, sname, interv, stored_data, pr
     
     fig.add_trace(go.Scatter(x=df.index, y=df['dailyPOC'], mode='lines',name='dailyPOC', hovertext=df['time'].tolist(), marker_color='#16FF32'))
     fig.add_trace(go.Scatter(x=df.index, y=df['dailyPOC2'], mode='lines',name='dailyPOC2', hovertext=df['time'].tolist(), marker_color='#16FF32'))
+    
+    try:
+        #pass
+        fig.add_trace(go.Scatter(x=df.index, y=df['PreviousDayPOC'], mode='lines', name='PreviousDayPOC'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['PreviousDayHVA'], mode='lines', name='PreviousDayHVA'))
+        fig.add_trace(go.Scatter(x=df.index, y=df['PreviousDayLVA'], mode='lines', name='PreviousDayLVA'))
+    except(KeyError):
+        pass
         
 
     fig.add_trace(go.Candlestick(
