@@ -481,7 +481,7 @@ filtered_files = sorted(
 #import duckdb
 #from google.api_core.exceptions import NotFound
 from dash import Dash, dcc, html, Input, Output, callback, State, callback_context
-initial_inter = 1800000  # Initial interval #210000#250000#80001
+initial_inter = 2000000  # Initial interval #210000#250000#80001
 subsequent_inter = 300000  # Subsequent interval
 app = Dash()
 app.title = "EnVisage"
